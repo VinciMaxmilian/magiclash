@@ -6,11 +6,15 @@ import { TitleScene } from './game/scenes/TitleScene';
 import { MatchScene } from './game/scenes/MatchScene';
 import { ResultsScene } from './game/scenes/ResultsScene';
 import { SelectScene } from './game/scenes/SelectScene';
+import { AuthScene } from './game/scenes/AuthScene';
+import { ProfileScene } from './game/scenes/ProfileScene';
+import { account } from './services/account';
 
 const BASE_W = 640;
 const BASE_H = 360;
 
 initServices();
+void account.init(); // restores a saved session (non-blocking)
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -35,12 +39,16 @@ const game = new Phaser.Game({
     fullscreenTarget: 'game',
   },
   banner: __DEV_TOOLS__,
-  scene: [BootScene, TitleScene, SelectScene, MatchScene, ResultsScene],
+  // HTML inputs (login/profile forms) live in Phaser's DOM layer, scaled with the canvas.
+  dom: { createContainer: true },
+  scene: [BootScene, TitleScene, SelectScene, MatchScene, ResultsScene, AuthScene, ProfileScene],
 });
 
 /** F toggles browser fullscreen (must come from a user gesture, so it's a key handler). */
 window.addEventListener('keydown', (e) => {
   if (e.code !== 'KeyF' || e.repeat) return;
+  const t = e.target as HTMLElement | null;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
   if (game.scale.isFullscreen) game.scale.stopFullscreen();
   else game.scale.startFullscreen();
 });

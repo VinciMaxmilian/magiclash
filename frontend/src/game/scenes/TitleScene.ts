@@ -5,6 +5,7 @@ import { REF_CENTER } from '../maps/castleCourtyardArt';
 import { ensurePanel } from '../render/textures';
 import { pixelText, setPixelText } from '../../ui/text';
 import { CONTROL_HINTS } from '../input/actions';
+import { account, displayName } from '../../services/account';
 
 type Item = { label: () => string; adjust?: (dir: -1 | 1) => void; confirm?: () => void };
 
@@ -43,6 +44,10 @@ export class TitleScene extends Phaser.Scene {
     };
     this.items = [
       { label: () => 'JOGAR (SINGLEPLAYER)', confirm: () => this.startMatch() },
+      {
+        label: () => (account.signedIn ? `PERFIL: ${displayName()}` : `CONTA (VISITANTE: ${displayName()})`),
+        confirm: () => this.scene.start('Profile'),
+      },
       { label: () => `VOLUME GERAL  < ${Math.round(s.settings.masterVolume * 100)}% >`, adjust: vol('masterVolume') },
       { label: () => `EFEITOS       < ${Math.round(s.settings.sfxVolume * 100)}% >`, adjust: vol('sfxVolume') },
       { label: () => `MÚSICA        < ${Math.round(s.settings.musicVolume * 100)}% >`, adjust: vol('musicVolume') },
@@ -50,9 +55,9 @@ export class TitleScene extends Phaser.Scene {
       { label: () => (this.scale.isFullscreen ? 'SAIR DA TELA CHEIA' : 'TELA CHEIA (F)'), confirm: () => this.scale.toggleFullscreen() },
     ];
 
-    this.add.image(320, 196, ensurePanel(this, 260, 104)).setScrollFactor(0).setDepth(10);
+    this.add.image(320, 200, ensurePanel(this, 272, 124)).setScrollFactor(0).setDepth(10);
     this.texts = this.items.map((it, i) =>
-      pixelText(this, 206, 154 + i * 14, it.label(), { depth: 11, color: 0xb7c2d6 }),
+      pixelText(this, 200, 146 + i * 14, it.label(), { depth: 11, color: 0xb7c2d6 }),
     );
 
     pixelText(this, 320, 336, '{ } ESCOLHER   ~ | AJUSTAR   ENTER CONFIRMAR', {

@@ -16,6 +16,7 @@ import { ANCHOR_X, ANCHOR_Y, CELL, LOOPS, STYLES } from '../render/fighterSprite
 import { pixelText, setPixelText } from '../../ui/text';
 import type { MatchSetup, SlotSetup } from '../match/setup';
 import { DIFFICULTIES, DIFFICULTY_LABEL } from './labels';
+import { displayName } from '../../services/account';
 
 const COLOR_LABEL: Record<TeamColor, string> = { blue: 'AZUL', red: 'VERMELHO', green: 'VERDE', yellow: 'AMARELO' };
 const STAGE_BLURB: Record<string, string> = {
@@ -172,7 +173,7 @@ export class SelectScene extends Phaser.Scene {
     const difficulty = DIFFICULTIES[c.difficulty];
     const pick = () =>
       c.botCharacter >= 0 ? CHARACTER_ORDER[c.botCharacter] : CHARACTER_ORDER[Math.floor(Math.random() * CHARACTER_ORDER.length)];
-    const me: SlotSetup = { characterId: CHARACTER_ORDER[c.character], color: TEAM_ORDER[c.color], team: 0, label: 'P1', bot: null };
+    const me: SlotSetup = { characterId: CHARACTER_ORDER[c.character], color: TEAM_ORDER[c.color], team: 0, label: displayName(), bot: null };
     if (c.mode === 'teams') {
       // Team colors are fixed for readability: blue/green vs red/yellow.
       return {

@@ -8,7 +8,7 @@
 | Regra | Valor |
 |---|---|
 | Resolução base (lógica) | **640 × 360** (16:9) |
-| Escala | **somente inteira**: ×2 = 1280×720, ×3 = 1920×1080, ×4 = 2560×1440. Sobra de tela = letterbox |
+| Escala | **preenche a janela** mantendo 16:9 (decisão do usuário: usar a tela inteira). Nearest-neighbour; em escalas não inteiras alguns pixels de arte ficam 1 px de tela mais largos. Em 1920×1080 / 1280×720 a escala é inteira (×3 / ×2) |
 | Tamanho do pixel | 1 pixel de arte = 1 unidade de mundo = N pixels de tela. Nunca fracionário |
 | Posições | arredondadas para inteiro no render (a sim usa float; o render faz `Math.round`) |
 | Rotação/escala em runtime | **proibidas** em sprites (geram pixels tortos). Ângulos são pré-desenhados |
@@ -146,7 +146,9 @@ final mantendo os mesmos nomes de frames/animações (o render só troca a textu
 
 | Asset | Origem | Ferramenta/prompt | Status |
 |---|---|---|---|
-| Cavaleiro (placeholder) | procedural | `render/knightSprite.ts` | em uso (placeholder) |
+| 6 classes (placeholder) | procedural | `render/fighterSprite.ts` (poses do cavaleiro em `knightSprite.ts`) | em uso (placeholder) |
+| Projéteis e efeitos elementais | procedural | `render/projectileSprites.ts` | em uso (placeholder) |
+| Enchanted Forest, Frozen Fortress | procedural | `maps/*Art.ts`, `maps/stageKit.ts` | em uso (placeholder) |
 | Castle Courtyard (placeholder) | procedural | `maps/castleCourtyardArt.ts` | em uso (placeholder) |
 | Efeitos básicos | procedural | `render/effectSprites.ts` | em uso (placeholder) |
 | SFX | síntese WebAudio | `audio/sfx.ts` | em uso (placeholder) |

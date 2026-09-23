@@ -1,8 +1,9 @@
 # MagiClash — Banco de Dados (Supabase)
 
-Status: **modelo desenhado na Fase 0**, migration rascunho em
-`supabase/migrations/20260923000000_initial_schema.sql`. **Ainda não aplicada** em nenhum projeto
-Supabase; a aplicação e a validação acontecem na Fase 4.
+Status (Fase 4): **aplicado** no projeto `magiclash` (`cvflnhkaelgsdjrgkkfu`) via migrations
+versionadas em `supabase/migrations/` (`initial_schema`, `hardening`). Advisors de segurança: só o
+INFO intencional de `security_events` sem policy. RLS verificado por
+`backend/tests/test_supabase_integration.py` contra o banco real.
 
 ## Princípios
 
@@ -36,10 +37,11 @@ Views:
 
 ## Funções (SECURITY DEFINER, `search_path` fixo, executáveis só pela service role)
 
-- `record_match_result(match_id, payload jsonb)`: transação única que valida estado da partida,
+- `record_match_result(match_id, payload jsonb)` (Fase 6): transação única que valida estado da partida,
   grava participantes, atualiza `player_stats`, `player_ratings`, `rating_history`, muda status para
   `finished`. Idempotente: segunda chamada para a mesma partida é rejeitada.
-- `mm_try_match(queue)`: pareia tickets com `FOR UPDATE SKIP LOCKED` (sem corrida entre instâncias
+- `app_private.is_match_participant(match)`: helper das policies (schema não exposto pela API).
+- `mm_try_match(queue)` (Fase 5): pareia tickets com `FOR UPDATE SKIP LOCKED` (sem corrida entre instâncias
   serverless).
 
 `REVOKE EXECUTE … FROM anon, authenticated` em todas.

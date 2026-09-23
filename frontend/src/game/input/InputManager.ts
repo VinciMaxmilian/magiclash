@@ -23,7 +23,14 @@ export class KeyboardSource implements InputSource {
     target.addEventListener('blur', this.onBlur);
   }
 
+  /** Typing in a text field (login form, names) must not move the fighter or be swallowed. */
+  private static isTyping(e: KeyboardEvent): boolean {
+    const t = e.target as HTMLElement | null;
+    return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+  }
+
   private onDown = (e: KeyboardEvent) => {
+    if (KeyboardSource.isTyping(e)) return;
     const actions = this.bindings[e.code];
     if (!actions) return;
     e.preventDefault(); // no page scroll on Space/arrows, no browser F1 help

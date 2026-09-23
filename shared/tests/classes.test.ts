@@ -140,7 +140,7 @@ describe('projectiles', () => {
     });
     place(sim, 0, -100, 1);
     place(sim, 1, -20, -1);
-    place(sim, 2, -4, -1);
+    place(sim, 2, -14, -1);
     settle(sim);
     const events = run(sim, 60, (t) => [t === 0 ? Btn.Right | Btn.Light : 0]);
     expect(events.some((e) => e.type === 'explosion')).toBe(true);
@@ -165,7 +165,7 @@ describe('projectiles', () => {
     place(sim, 1, 200, -1);
     settle(sim);
     const beam = CHARACTERS.lightning_mage.attacks.find((a) => a.id === 'thunder_beam_cast')!;
-    run(sim, beam.startup + 1, (t) => [t === 0 ? Btn.Light : 0]);
+    run(sim, beam.startup + 1, (t) => [t === 0 ? Btn.Heavy : 0]);
     expect(sim.state.projectiles.some((p) => p.defId === 'thunder_beam')).toBe(true);
     Object.assign(sim.state.fighters[0], { state: 'hitstun', hitstun: 20, attack: null });
     run(sim, 1);
@@ -185,8 +185,8 @@ describe('barbarian axe', () => {
   it('throwing disarms, attacks become unarmed, and the axe comes back', () => {
     const sim = duel('barbarian', 'knight');
     const b = sim.state.fighters[0];
-    place(sim, 0, -60, 1);
-    place(sim, 1, 150, -1);
+    place(sim, 0, -120, 1);
+    place(sim, 1, -160, 1); // behind: the axe can't hit it and return early
     settle(sim);
     run(sim, 20, (t) => [t === 0 ? Btn.Right | Btn.Heavy : 0]);
     expect(b.weaponOut).toBe(true);
@@ -196,7 +196,8 @@ describe('barbarian axe', () => {
     run(sim, 120);
     const axe = sim.state.projectiles.find((p) => p.owner === 0);
     if (axe && axe.stuck >= 0) {
-      Object.assign(b, { x: axe.x, y: axe.y + 4, grounded: false, state: 'air', vx: 0, vy: 0 });
+      // Walk onto it: stand on the floor right at the axe.
+      Object.assign(b, { x: axe.x, y: 0, grounded: true, state: 'idle', vx: 0, vy: 0 });
       const back = run(sim, 3);
       expect(back.some((e) => e.type === 'weapon_back' && e.picked)).toBe(true);
     }

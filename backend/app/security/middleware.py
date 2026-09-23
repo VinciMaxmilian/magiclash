@@ -67,19 +67,22 @@ class BodySizeLimitMiddleware:
     """Rejects bodies above `max_bytes`. Checks Content-Length AND the real stream, since
     a client can lie about Content-Length or use chunked encoding."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, max_bytes: int, overrides: dict[str, int] | None = None) -> None:
         self.app = app
-        self.max_bytes = max_bytes
+        self.default_max = max_bytes
+        # Exact-path overrides for the few endpoints that legitimately take bigger bodies.
+        self.overrides = overrides or {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        max_bytes = self.overrides.get(scope.get("path", ""), self.default_max)
         headers = dict(scope.get("headers") or [])
         declared = headers.get(b"content-length")
         if declared is not None:
             try:
-                too_big = int(declared) > self.max_bytes
+                too_big = int(declared) > max_bytes
             except ValueError:
                 too_big = True
             if too_big:
@@ -93,7 +96,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     raise _BodyTooLarge
             return message
 

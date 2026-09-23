@@ -20,3 +20,82 @@ body {
   image-rendering: crisp-edges;
   outline: none;
 }
+
+/* Pixel-styled HTML forms rendered in Phaser's DOM layer (scaled with the canvas). */
+.mc-form {
+  width: 236px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9px;
+  font-weight: bold;
+  color: #eef2f7;
+  text-transform: uppercase;
+}
+.mc-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #b7c2d6;
+  letter-spacing: 0.5px;
+}
+.mc-form input[type='text'],
+.mc-form input[type='email'],
+.mc-form input[type='password'] {
+  font: inherit;
+  text-transform: none;
+  background: #1f1b3a;
+  color: #eef2f7;
+  border: 2px solid #5b5668;
+  border-radius: 0;
+  padding: 3px 4px;
+  outline: none;
+  box-shadow: inset 0 2px 0 #1a1422;
+}
+.mc-form input:focus {
+  border-color: #d9a24e;
+}
+.mc-form .mc-row {
+  display: flex;
+  gap: 6px;
+}
+.mc-form button {
+  flex: 1;
+  font: inherit;
+  cursor: pointer;
+  background: #403c4c;
+  color: #f2d27a;
+  border: 2px solid #1a1422;
+  border-radius: 0;
+  box-shadow: inset 0 -2px 0 #2a2733, inset 0 2px 0 #7b7588;
+  padding: 4px 2px;
+}
+.mc-form button:hover,
+.mc-form button:focus-visible {
+  background: #5b5668;
+  outline: none;
+}
+.mc-form button.mc-secondary {
+  color: #b7c2d6;
+}
+.mc-form .mc-msg {
+  min-height: 10px;
+  color: #f28a6b;
+}
+.mc-form .mc-msg.ok {
+  color: #a5d86a;
+}
+.mc-form select {
+  font: inherit;
+  background: #1f1b3a;
+  color: #eef2f7;
+  border: 2px solid #5b5668;
+  border-radius: 0;
+  padding: 2px;
+}
+.mc-form input[type='file'] {
+  font: inherit;
+  color: #b7c2d6;
+  max-width: 100%;
+}

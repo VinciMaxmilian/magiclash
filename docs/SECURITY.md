@@ -52,8 +52,18 @@ O overlay de debug (hitboxes, estado, FPS, ping) é importado via `import.meta.e
 de produção o módulo nem entra no bundle. No online o overlay mostra o que o cliente *recebe*,
 então não dá vantagem que já não exista.
 
-## 6. Estado atual (Fase 1)
+## 6. Estado atual (Fase 4)
 
-Implementado: headers de segurança + CORS restritivo + limite de corpo + rate limit (in-memory,
-dev) + logs com redaction + handlers de erro seguros no backend; CSP/headers no Netlify; testes
-`backend/tests/test_security.py`. Auth, RLS aplicado e HMAC do game server entram nas Fases 4–5.
+Implementado e testado:
+- Backend: headers, CORS restritivo, limite de corpo (com override só para avatar), rate limit
+  global + por usuário em escritas, logs com redaction, erros sem eco de input, docs off em produção.
+- Auth: token validado pelo Supabase Auth (`/auth/v1/user`), id do usuário vem **só** do token;
+  cache de 60 s por hash do token.
+- Perfis: schema estrito (`extra=forbid`), nomes reservados, username único (409), sem IDOR.
+- Avatar: 512 KB, extensão + magic bytes + decode real + limite de pixels + re-encode WebP + nome
+  aleatório; SVG/EXE/polyglot rejeitados (testes).
+- Supabase: RLS deny-by-default, REVOKE de escrita em dados competitivos, column privileges em
+  `profiles`, helper de RLS fora do schema exposto, bucket sem upload de cliente (testes reais).
+- Frontend: só chave pública; inputs HTML não recebem atalhos do jogo.
+
+Pendente (Fase 5): join tokens e HMAC do game server, captcha no guest online, rate limit compartilhado.
