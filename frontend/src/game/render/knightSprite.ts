@@ -101,8 +101,14 @@ export const drawKnight = (pose: KnightPose, team: TeamColor): PixelBuffer => {
   const fHand = hand(fShoulder, p.fArm);
   const bHand = hand(bShoulder, p.bArm);
 
-  const limb = (a: V2, b: V2, l1: number, l2: number, bend: 1 | -1, w: number, c: number, hi: number) => {
+  const limb = (
+    a: V2, b: V2, l1: number, l2: number, bend: 1 | -1, w: number, c: number, hi: number, border?: number,
+  ) => {
     const j = ik(a, b, l1, l2, bend);
+    if (border !== undefined) {
+      buf.line(a[0], a[1], j[0], j[1], border, w + 2);
+      buf.line(j[0], j[1], b[0], b[1], border, w + 2);
+    }
     buf.line(a[0], a[1], j[0], j[1], c, w);
     buf.line(j[0], j[1], b[0], b[1], c, w);
     buf.line(a[0], a[1] - 1, j[0], j[1] - 1, hi, 1);
@@ -116,9 +122,20 @@ export const drawKnight = (pose: KnightPose, team: TeamColor): PixelBuffer => {
     buf.rect(x - 2, y, 4, 1, dark ? L[1] : L[2]);
   };
 
+  // 0. Short cape in team color (behind everything): strongest team read at a glance.
+  for (let r = 0; r < 14; r++) {
+    const y = Math.round(top[1] + 1 + r);
+    const t = r / 13;
+    const right = Math.round(top[0] - 2 + (hip[0] - 4 - (top[0] - 2)) * t - p.lean * 0.4 * t);
+    const w = 3 + Math.floor(r / 4);
+    buf.rect(right - w, y, w + 1, 1, T[1]);
+    buf.set(right - w, y, T[0]);
+    if (r === 13) buf.rect(right - w, y, w + 1, 1, T[0]);
+  }
+
   // 1. Back arm (shadowed)
-  limb(bShoulder, bHand, UPPER_ARM, FOREARM, 1, 3, S[1], S[1]);
-  buf.rect(Math.round(bHand[0]) - 1, Math.round(bHand[1]) - 1, 3, 3, S[0]);
+  limb(bShoulder, bHand, UPPER_ARM, FOREARM, 1, 3, S[0], S[1]);
+  buf.rect(Math.round(bHand[0]) - 1, Math.round(bHand[1]) - 1, 3, 3, L[0]);
 
   // 2. Back leg
   limb([hip[0] - 2, hip[1]], [ax + p.bFoot[0], ay + p.bFoot[1]], THIGH, SHIN, -1, 4, S[1], S[1]);
@@ -135,10 +152,13 @@ export const drawKnight = (pose: KnightPose, team: TeamColor): PixelBuffer => {
     buf.set(x0, y, S[1]);
     buf.set(x0 + 1, y, S[1]);
     buf.set(x0 + w - 1, y, S[3]);
-    if (r >= 3 && r <= 10) {
-      buf.rect(cx, y, 3, 1, T[r < 5 ? 2 : 1]);
-      buf.set(cx + 1, y, T[r < 5 ? 3 : 2]);
+    if (r >= 2) {
+      buf.rect(cx - 1, y, 4, 1, T[1]);
+      buf.set(cx + 2, y, T[2]);
+      if (r === 2) buf.rect(cx - 1, y, 4, 1, T[2]);
     }
+    if (r === 5 || r === 6) buf.set(cx, y, G[3]);
+    if (r === 5) buf.set(cx + 1, y, G[2]);
     if (r === 9) {
       buf.rect(x0, y, w, 1, L[1]);
       buf.set(cx + 1, y, G[3]);
@@ -148,11 +168,14 @@ export const drawKnight = (pose: KnightPose, team: TeamColor): PixelBuffer => {
   buf.set(top[0] + 3, top[1] + 2, S[4]);
   buf.set(top[0] + 3, top[1] + 3, S[3]);
   // tabard tail over the thighs
-  buf.rect(Math.round(hip[0]), Math.round(hip[1]) + 1, 3, 3, T[1]);
-  buf.set(Math.round(hip[0]) + 1, Math.round(hip[1]) + 1, T[2]);
+  buf.rect(Math.round(hip[0]) - 1, Math.round(hip[1]) + 1, 4, 3, T[1]);
+  buf.rect(Math.round(hip[0]) - 1, Math.round(hip[1]) + 3, 4, 1, T[0]);
+  buf.set(Math.round(hip[0]) + 2, Math.round(hip[1]) + 1, T[2]);
 
   // 4. Front leg
-  limb([hip[0] + 1, hip[1]], [ax + p.fFoot[0], ay + p.fFoot[1]], THIGH, SHIN, -1, 4, S[2], S[3]);
+  const knee = limb([hip[0] + 1, hip[1]], [ax + p.fFoot[0], ay + p.fFoot[1]], THIGH, SHIN, -1, 4, S[2], S[3], S[0]);
+  buf.rect(Math.round(knee[0]), Math.round(knee[1]) - 1, 2, 2, S[3]);
+  buf.set(Math.round(knee[0]) + 1, Math.round(knee[1]) - 1, S[4]);
   boot([ax + p.fFoot[0], ay + p.fFoot[1]], false);
 
   // 5. Head: great helm + plume
@@ -178,12 +201,12 @@ export const drawKnight = (pose: KnightPose, team: TeamColor): PixelBuffer => {
   buf.set(fHand[0] - sd[0] * 3, fHand[1] - sd[1] * 3, G[3]);
 
   // 7. Front arm over the grip, pauldron, gauntlet
-  limb(fShoulder, fHand, UPPER_ARM, FOREARM, 1, 3, S[2], S[3]);
-  buf.disc(fShoulder[0], fShoulder[1], 2, S[2]);
+  limb(fShoulder, fHand, UPPER_ARM, FOREARM, 1, 3, S[1], S[2], S[0]);
+  buf.disc(fShoulder[0], fShoulder[1], 2, S[3]);
   buf.set(fShoulder[0], fShoulder[1] - 2, S[4]);
   buf.set(fShoulder[0] + 1, fShoulder[1] - 1, S[3]);
-  buf.rect(Math.round(fHand[0]) - 1, Math.round(fHand[1]) - 1, 3, 3, S[2]);
-  buf.set(Math.round(fHand[0]), Math.round(fHand[1]) - 1, S[3]);
+  buf.rect(Math.round(fHand[0]) - 1, Math.round(fHand[1]) - 1, 3, 3, L[1]);
+  buf.set(Math.round(fHand[0]), Math.round(fHand[1]) - 1, L[2]);
 
   buf.outline();
   return buf;
