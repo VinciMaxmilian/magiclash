@@ -1,0 +1,24 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+
+# env / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# vercel / netlify local state
+.vercel/
+.netlify/
+
+# asset pipeline scratch (raw AI generations stay out of the repo until curated)
+assets-raw/
