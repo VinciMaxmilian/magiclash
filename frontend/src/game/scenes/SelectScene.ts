@@ -23,7 +23,6 @@ const STAGE_BLURB: Record<string, string> = {
   enchanted_forest: 'ESTREITO: COMBATE AÉREO',
   frozen_fortress: 'AMPLO E ASSIMÉTRICO',
 };
-const RANDOM = 'random';
 
 interface Choice {
   character: number;
@@ -105,12 +104,12 @@ export class SelectScene extends Phaser.Scene {
     });
 
     // Preview
-    this.add.image(96, 262, ensurePanel(this, 180, 128)).setScrollFactor(0).setDepth(10);
-    this.preview = this.add.image(58, 300, 'px').setScale(2).setScrollFactor(0).setDepth(12).setOrigin(ANCHOR_X / CELL, ANCHOR_Y / CELL);
-    this.previewName = pixelText(this, 104, 206, '', { color: PAL.gold[3], depth: 12 });
-    this.previewDesc = pixelText(this, 104, 220, '', { outline: false, color: PAL.steel[3], depth: 12 });
+    this.add.image(146, 262, ensurePanel(this, 280, 128)).setScrollFactor(0).setDepth(10);
+    this.preview = this.add.image(50, 304, 'px').setScale(2).setScrollFactor(0).setDepth(12).setOrigin(ANCHOR_X / CELL, ANCHOR_Y / CELL);
+    this.previewName = pixelText(this, 96, 206, '', { color: PAL.gold[3], depth: 12 });
+    this.previewDesc = pixelText(this, 96, 220, '', { outline: false, color: PAL.steel[3], depth: 12 });
     this.statBars = this.add.graphics().setScrollFactor(0).setDepth(12);
-    this.statLabels = [0, 1, 2, 3].map((k) => pixelText(this, 104, 268 + k * 11, '', { outline: false, color: PAL.sky[4], depth: 12 }));
+    this.statLabels = [0, 1, 2, 3].map((k) => pixelText(this, 96, 272 + k * 11, '', { outline: false, color: PAL.sky[4], depth: 12 }));
 
     // Options
     const c = this.choice;
@@ -221,13 +220,13 @@ export class SelectScene extends Phaser.Scene {
     const def = CHARACTERS[id];
     this.preview.setTexture(ensureFighterTexture(this, id, color), 'idle_0');
     setPixelText(this.previewName, def.name);
-    setPixelText(this.previewDesc, wrap(def.description, 14));
+    setPixelText(this.previewDesc, wrap(def.description, 29));
     this.statBars.clear();
     ratings(def).forEach(([label, v], k) => {
       setPixelText(this.statLabels[k], label);
       for (let i = 0; i < 6; i++) {
         this.statBars.fillStyle(i < v ? TEAM_RAMPS[color][2] : PAL.stone[1], 1);
-        this.statBars.fillRect(104 + 62 + i * 5, 270 + k * 11, 4, 5);
+        this.statBars.fillRect(96 + 66 + i * 7, 275 + k * 11, 6, 5);
       }
     });
     this.rows.forEach((r, i) => {

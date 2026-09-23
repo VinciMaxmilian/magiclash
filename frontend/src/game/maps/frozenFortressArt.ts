@@ -19,10 +19,10 @@ const drawSky = (): PixelBuffer => {
   for (let band = 0; band < 2; band++) {
     for (let x = 0; x < b.w; x++) {
       const cy = 60 + band * 26 + Math.round(Math.sin(x / 57 + band * 2) * 14 + smoothNoise(x / 30, 92 + band) * 10);
-      for (let t = 0; t < 22; t++) {
+      for (let t = 0; t < 14; t++) {
         const y = cy + t;
-        const k = 1 - t / 22;
-        if (dither2(x, y, k * 0.7)) b.set(x, y, t < 4 ? PAL.moss[3] : band ? I[2] : PAL.moss[2]);
+        const k = 1 - t / 14;
+        if (dither2(x, y, k * 0.45)) b.set(x, y, t < 2 ? PAL.moss[3] : band ? I[1] : PAL.moss[1]);
       }
     }
   }

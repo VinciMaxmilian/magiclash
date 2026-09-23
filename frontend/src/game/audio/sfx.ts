@@ -38,7 +38,9 @@ export type SfxId =
   | 'explosion'
   | 'weapon_back'
   | 'charge_full'
-  | 'thud';
+  | 'thud'
+  | 'arrow'
+  | 'arrow_heavy';
 
 type Synth = (ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: number, pitch: number) => void;
 
@@ -193,6 +195,12 @@ export const SFX: Record<SfxId, Synth> = {
     tone(c, o, t + 0.05, { type: 'triangle', from: 990, to: 990, peak: 0.08, attack: 0.002, decay: 0.08 });
   },
   charge_full: (c, o, _n, t) => tone(c, o, t, { type: 'triangle', from: 1320, to: 1320, peak: 0.07, attack: 0.002, decay: 0.12 }),
+  arrow: (c, o, n, t, p) =>
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 4200 * p, to: 2200 * p, q: 3, peak: 0.12, attack: 0.005, decay: 0.12 }),
+  arrow_heavy: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 3200 * p, to: 1200 * p, q: 2.5, peak: 0.22, attack: 0.005, decay: 0.2 });
+    tone(c, o, t, { type: 'triangle', from: 300 * p, to: 180 * p, peak: 0.06, attack: 0.005, decay: 0.15 });
+  },
   thud: (c, o, n, t) => noiseBurst(c, o, n, t, { type: 'lowpass', from: 600, to: 100, peak: 0.35, attack: 0.002, decay: 0.08 }),
   go: (c, o, _n, t) => {
     tone(c, o, t, { type: 'square', from: 880, to: 880, peak: 0.09, attack: 0.003, decay: 0.3 });

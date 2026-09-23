@@ -74,10 +74,12 @@ export class AudioManager {
   /** `pitch` ~1 (random ±5% added for variety). Rapid repeats of the same id are throttled. */
   play(id: SfxId, bus: Bus = 'sfx', pitch = 1): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
+    const synth = SFX[id];
+    if (!synth) return; // unknown id from data: silent rather than crashing the frame
     const now = this.ctx.currentTime;
     if (now - (this.lastPlayed.get(id) ?? -1) < 0.03) return;
     this.lastPlayed.set(id, now);
-    SFX[id](this.ctx, this.buses[bus], this.noise, now, pitch * (0.95 + Math.random() * 0.1));
+    synth(this.ctx, this.buses[bus], this.noise, now, pitch * (0.95 + Math.random() * 0.1));
   }
 
   /** Low wind bed for stage ambience. */
