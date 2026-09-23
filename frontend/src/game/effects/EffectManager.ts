@@ -41,6 +41,8 @@ export interface SpawnOptions {
   follow?: () => { x: number; y: number; flip: boolean } | null;
   dx?: number;
   dy?: number;
+  /** Multiplies the (mostly white) effect art: elemental variants of the same sprite. */
+  tint?: number;
 }
 
 export const MAX_PARTICLES = 150;
@@ -73,6 +75,8 @@ export class EffectManager {
     sprite.setTexture(key, 0);
     sprite.setActive(true).setVisible(true);
     sprite.setDepth(opts.depth ?? 25).setAlpha(opts.alpha ?? 1);
+    if (opts.tint !== undefined) sprite.setTint(opts.tint);
+    else sprite.clearTint();
     const fx: ActiveFx = {
       sprite,
       key,

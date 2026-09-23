@@ -5,7 +5,6 @@ import { REF_CENTER } from '../maps/castleCourtyardArt';
 import { ensurePanel } from '../render/textures';
 import { pixelText, setPixelText } from '../../ui/text';
 import { CONTROL_HINTS } from '../input/actions';
-import { DIFFICULTIES, DIFFICULTY_LABEL } from './labels';
 
 type Item = { label: () => string; adjust?: (dir: -1 | 1) => void; confirm?: () => void };
 
@@ -43,19 +42,12 @@ export class TitleScene extends Phaser.Scene {
       s.saveSettings();
     };
     this.items = [
-      { label: () => 'LUTAR: CAVALEIRO VS BOT', confirm: () => this.startMatch() },
-      {
-        label: () => `DIFICULDADE   < ${DIFFICULTY_LABEL[s.settings.difficulty]} >`,
-        adjust: (d) => {
-          const i = DIFFICULTIES.indexOf(s.settings.difficulty);
-          s.settings.difficulty = DIFFICULTIES[(i + d + DIFFICULTIES.length) % DIFFICULTIES.length];
-          s.saveSettings();
-        },
-      },
+      { label: () => 'JOGAR (SINGLEPLAYER)', confirm: () => this.startMatch() },
       { label: () => `VOLUME GERAL  < ${Math.round(s.settings.masterVolume * 100)}% >`, adjust: vol('masterVolume') },
       { label: () => `EFEITOS       < ${Math.round(s.settings.sfxVolume * 100)}% >`, adjust: vol('sfxVolume') },
       { label: () => `MÚSICA        < ${Math.round(s.settings.musicVolume * 100)}% >`, adjust: vol('musicVolume') },
       { label: () => 'CONTROLES', confirm: () => this.controls.setVisible(!this.controls.visible) },
+      { label: () => (this.scale.isFullscreen ? 'SAIR DA TELA CHEIA' : 'TELA CHEIA (F)'), confirm: () => this.scale.toggleFullscreen() },
     ];
 
     this.add.image(320, 196, ensurePanel(this, 260, 104)).setScrollFactor(0).setDepth(10);
@@ -72,14 +64,14 @@ export class TitleScene extends Phaser.Scene {
 
     // Controls panel
     this.controls = this.add.container(0, 0).setDepth(20);
-    this.controls.add(this.add.image(320, 196, ensurePanel(this, 300, 150)));
-    this.controls.add(pixelText(this, 320, 130, 'CONTROLES', { align: 'center', color: 0xf2d27a, fixed: false }));
+    this.controls.add(this.add.image(320, 200, ensurePanel(this, 300, 176)));
+    this.controls.add(pixelText(this, 320, 122, 'CONTROLES', { align: 'center', color: 0xf2d27a, fixed: false }));
     CONTROL_HINTS.forEach(([a, k], i) => {
-      this.controls.add(pixelText(this, 190, 150 + i * 13, a, { color: 0xb7c2d6, fixed: false }));
-      this.controls.add(pixelText(this, 450, 150 + i * 13, k, { color: 0xeef2f7, align: 'right', fixed: false }));
+      this.controls.add(pixelText(this, 190, 142 + i * 14, a, { color: 0xb7c2d6, fixed: false }));
+      this.controls.add(pixelText(this, 450, 142 + i * 14, k, { color: 0xeef2f7, align: 'right', fixed: false }));
     });
     this.controls.add(
-      pixelText(this, 320, 246, 'DIREÇÃO + ATAQUE = GOLPES DIRECIONAIS', { align: 'center', color: 0xeea57e, fixed: false }),
+      pixelText(this, 320, 262, 'DIREÇÃO + ATAQUE = GOLPES DIRECIONAIS', { align: 'center', color: 0xeea57e, fixed: false }),
     );
     this.controls.setScrollFactor(0, 0, true).setVisible(false);
     this.refresh();
@@ -90,7 +82,7 @@ export class TitleScene extends Phaser.Scene {
     this.starting = true;
     this.cameras.main.fadeOut(200, 26, 20, 34);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
-      this.scene.start('Match', { difficulty: svc().settings.difficulty }),
+      this.scene.start('Select'),
     );
   }
 

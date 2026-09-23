@@ -10,7 +10,12 @@ import { COMBAT } from '../combat/formulas';
 import { moveAndCollide } from '../physics/collision';
 import type { StageDefinition } from '../physics/stage';
 import { resolveSlot, slotFor } from '../characters/moveset';
-import { attackTotalFrames, type AttackDefinition, type CharacterDefinition } from '../characters/types';
+import {
+  attackTotalFrames,
+  type AttackDefinition,
+  type CharacterDefinition,
+  type ProjectileSpawn,
+} from '../characters/types';
 import type { FighterState, FighterStats, SimEvent } from './types';
 
 export const MAX_WALL_JUMPS = 3;
@@ -22,6 +27,8 @@ export interface FighterContext {
   stage: StageDefinition;
   tick: number;
   events: SimEvent[];
+  /** Creates a projectile owned by `f` (charge = 0..1). Provided by the Simulation. */
+  spawnProjectile: (f: FighterState, spawn: ProjectileSpawn, charge: number) => void;
 }
 
 export const emptyStats = (): FighterStats => ({
@@ -83,6 +90,9 @@ export const createFighter = (
   lastHitBy: -1,
   lastHitTick: -1,
   respawnTimer: 0,
+  weaponOut: false,
+  slowTicks: 0,
+  slowFactor: 1,
   stats: emptyStats(),
 });
 
@@ -107,6 +117,7 @@ const tickTimers = (f: FighterState) => {
   if (f.dodgeCooldown > 0) f.dodgeCooldown--;
   if (f.coyote > 0) f.coyote--;
   if (f.dropThroughTicks > 0) f.dropThroughTicks--;
+  if (f.slowTicks > 0 && --f.slowTicks === 0) f.slowFactor = 1;
   for (const k in f.cooldowns) {
     if (f.cooldowns[k] > 0) f.cooldowns[k]--;
   }
@@ -115,8 +126,16 @@ const tickTimers = (f: FighterState) => {
 export const canUseAttack = (f: FighterState, a: AttackDefinition): boolean =>
   (f.cooldowns[a.id] ?? 0) === 0 && !(a.recoveryMove && f.recoveryUsed);
 
-const startAttack = (f: FighterState, a: AttackDefinition, ctx: FighterContext) => {
-  f.attack = { id: a.id, frame: -1, hit: [] };
+/** Charge ratio 0..1 of the current attack instance. */
+export const chargeRatio = (f: FighterState, a: AttackDefinition): number =>
+  a.charge && f.attack ? Math.min(1, f.attack.charge / a.charge.maxTicks) : 0;
+
+/** While the weapon is thrown, weapon attacks are replaced by their unarmed variant. */
+export const effectiveAttack = (f: FighterState, a: AttackDefinition, attacks: Map<string, AttackDefinition>) =>
+  f.weaponOut && a.unarmed ? (attacks.get(a.unarmed) ?? a) : a;
+
+const startAttack = (f: FighterState, a: AttackDefinition, ctx: FighterContext, button = 0) => {
+  f.attack = { id: a.id, frame: -1, hit: [], charge: 0, button };
   f.fastFalling = false;
   if (a.recoveryMove) f.recoveryUsed = true;
   setState(f, 'attack');
@@ -130,11 +149,12 @@ const tryAttack = (f: FighterState, input: InputFrame, heavy: boolean, ctx: Figh
   const dirY = verticalAxis(input);
   const airborne = !f.grounded;
   const id = resolveSlot(ctx.c, slotFor(airborne, heavy, dirX, dirY));
-  const a = id ? ctx.attacks.get(id) : undefined;
+  const base = id ? ctx.attacks.get(id) : undefined;
+  const a = base ? effectiveAttack(f, base, ctx.attacks) : undefined;
   if (!a || !canUseAttack(f, a)) return false;
   // Side attacks (and any grounded attack) turn toward the held direction.
   if (dirX !== 0) f.facing = dirX;
-  startAttack(f, a, ctx);
+  startAttack(f, a, ctx, heavy ? Btn.Heavy : Btn.Light);
   return true;
 };
 
@@ -200,6 +220,20 @@ const runAttack = (f: FighterState, input: InputFrame, ctx: FighterContext) => {
   const a = ctx.attacks.get(inst.id)!;
   inst.frame++;
 
+  // Charging: hold the charge frame while the button that started the attack stays down.
+  if (a.charge && inst.frame === a.charge.frame + 1 && held(input, inst.button) && inst.charge < a.charge.maxTicks) {
+    inst.frame--;
+    inst.charge++;
+    if (inst.charge === a.charge.maxTicks) ctx.events.push({ type: 'charge_full', fighter: f.index });
+    f.vx *= 0.8;
+    if (!f.grounded) f.vy *= 0.85; // hovering slightly while charging in the air
+    return;
+  }
+
+  for (const sp of a.projectiles ?? []) {
+    if (sp.frame === inst.frame) ctx.spawnProjectile(f, sp, chargeRatio(f, a));
+  }
+
   const lastActive = a.startup + a.active - 1;
   if (a.untilLanding && inst.frame > lastActive && !f.grounded) inst.frame = lastActive;
 
@@ -218,7 +252,7 @@ const runAttack = (f: FighterState, input: InputFrame, ctx: FighterContext) => {
 
   if (a.aerial && !f.grounded) {
     const dirX = horizontalAxis(input);
-    if (dirX !== 0) f.vx = approach(f.vx, dirX * ctx.c.airSpeed, ctx.c.airAccel * 0.6);
+    if (dirX !== 0) f.vx = approach(f.vx, dirX * ctx.c.airSpeed * f.slowFactor, ctx.c.airAccel * 0.6);
   } else {
     f.vx *= a.friction ?? 0.8;
   }
@@ -228,7 +262,7 @@ const runAttack = (f: FighterState, input: InputFrame, ctx: FighterContext) => {
     if (next && canUseAttack(f, next)) {
       f.buffer.light = 0;
       f.cooldowns[a.id] = a.cooldown;
-      startAttack(f, next, ctx);
+      startAttack(f, next, ctx, inst.button || Btn.Light);
       return;
     }
   }
@@ -266,7 +300,7 @@ const updateActionable = (f: FighterState, input: InputFrame, ctx: FighterContex
   if (f.grounded) {
     if (dirX !== 0) {
       f.facing = dirX;
-      f.vx = approach(f.vx, dirX * c.moveSpeed, c.groundAccel);
+      f.vx = approach(f.vx, dirX * c.moveSpeed * f.slowFactor, c.groundAccel);
       setState(f, 'run');
     } else {
       f.vx = approach(f.vx, 0, c.groundFriction);
@@ -288,7 +322,7 @@ const updateActionable = (f: FighterState, input: InputFrame, ctx: FighterContex
     }
   } else {
     setState(f, 'air');
-    if (dirX !== 0) f.vx = approach(f.vx, dirX * c.airSpeed, c.airAccel);
+    if (dirX !== 0) f.vx = approach(f.vx, dirX * c.airSpeed * f.slowFactor, c.airAccel);
     else f.vx = approach(f.vx, 0, c.airFriction);
     if (pressed(input, f.prevInput, Btn.Down) && f.vy > -1.5) {
       f.fastFalling = true;

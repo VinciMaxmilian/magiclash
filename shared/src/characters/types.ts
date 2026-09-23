@@ -130,6 +130,8 @@ export interface ProjectileSpawn {
   /** Spawn offset from the feet anchor, facing right. */
   x: number;
   y: number;
+  /** Overrides the projectile's launch angle (fans, diagonal shots). */
+  angle?: number;
 }
 
 export interface ChargeDefinition {

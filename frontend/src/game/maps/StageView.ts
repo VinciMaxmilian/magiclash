@@ -1,15 +1,19 @@
 import Phaser from 'phaser';
 import { PixelBuffer } from '../render/pixelBuffer';
 import { buildCastleCourtyardArt, parallaxPosition, type StageArt } from './castleCourtyardArt';
+import { buildEnchantedForestArt } from './enchantedForestArt';
+import { buildFrozenFortressArt } from './frozenFortressArt';
 import { EFFECT_ORIGINS } from '../render/textures';
 import type { EffectManager } from '../effects/EffectManager';
 import { PAL } from '../render/palette';
 
 const ART_BUILDERS: Record<string, () => StageArt> = {
   castle_courtyard: buildCastleCourtyardArt,
+  enchanted_forest: buildEnchantedForestArt,
+  frozen_fortress: buildFrozenFortressArt,
 };
 
-let cache: { id: string; art: StageArt } | null = null;
+const cache = new Map<string, StageArt>();
 
 const addBufferTexture = (scene: Phaser.Scene, key: string, buf: PixelBuffer) => {
   if (scene.textures.exists(key)) return;
@@ -33,18 +37,21 @@ interface Flame {
 export class StageView {
   private flames: Flame[] = [];
   private t = 0;
+  private ambient: StageArt['ambient'] = 'embers';
 
   constructor(
     private readonly scene: Phaser.Scene,
     stageId: string,
     private readonly fx?: EffectManager,
   ) {
-    if (!cache || cache.id !== stageId) {
+    let art = cache.get(stageId);
+    if (!art) {
       const build = ART_BUILDERS[stageId];
       if (!build) throw new Error(`No art for stage ${stageId}`);
-      cache = { id: stageId, art: build() };
+      art = build();
+      cache.set(stageId, art);
     }
-    const art = cache.art;
+    this.ambient = art.ambient;
 
     for (const l of art.parallax) {
       addBufferTexture(scene, l.key, l.buf);
@@ -72,16 +79,20 @@ export class StageView {
       const frame = Math.floor((this.t + f.phase) / 6) % 3;
       f.sprite.setFrame(frame);
     }
-    // Rare drifting embers near the arena for life, never dense enough to distract.
-    if (this.fx && Math.random() < 0.02 * dt) {
-      const x = -200 + Math.random() * 400;
-      this.fx.burst(x, 40 + Math.random() * 40, 1, [PAL.fire[2], PAL.fire[3]], {
-        speed: 0.4,
-        gravity: -0.01,
-        life: 120,
-        angle: -Math.PI / 2,
-        spread: 0.8,
-        drag: 0.995,
+    // Light ambience, never dense enough to distract (and well under the particle budget).
+    if (!this.fx) return;
+    const cam = this.scene.cameras.main;
+    if (this.ambient === 'embers' && Math.random() < 0.02 * dt) {
+      this.fx.burst(-200 + Math.random() * 400, 40 + Math.random() * 40, 1, [PAL.fire[2], PAL.fire[3]], {
+        speed: 0.4, gravity: -0.01, life: 120, angle: -Math.PI / 2, spread: 0.8, drag: 0.995,
+      });
+    } else if (this.ambient === 'fireflies' && Math.random() < 0.03 * dt) {
+      this.fx.burst(cam.scrollX + Math.random() * 640, cam.scrollY + 60 + Math.random() * 260, 1, [PAL.lightning[4], PAL.moss[3], PAL.ice[3]], {
+        speed: 0.25, gravity: 0, life: 150, drag: 1,
+      });
+    } else if (this.ambient === 'snow' && Math.random() < 0.09 * dt) {
+      this.fx.burst(cam.scrollX + Math.random() * 700 - 30, cam.scrollY - 4, 1, [PAL.white, PAL.ice[4], PAL.ice[3]], {
+        speed: 0.5, gravity: 0.004, life: 280, angle: Math.PI / 2 + 0.25, spread: 0.5, drag: 0.999,
       });
     }
   }

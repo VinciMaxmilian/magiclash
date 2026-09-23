@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TICK_RATE } from '@magiclash/shared';
+import { TICK_RATE, getCharacter, getStage } from '@magiclash/shared';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { REF_CENTER } from '../maps/castleCourtyardArt';
@@ -7,7 +7,6 @@ import { PAL, TEAM_RAMPS } from '../render/palette';
 import { ensurePanel } from '../render/textures';
 import { pixelText, setPixelText } from '../../ui/text';
 import type { ResultsData } from './MatchScene';
-import { DIFFICULTY_LABEL } from './labels';
 
 /**
  * Local results. Offline matches never touch the backend/leaderboard: in online play the
@@ -17,6 +16,7 @@ export class ResultsScene extends Phaser.Scene {
   private cursor = 0;
   private options: Phaser.GameObjects.BitmapText[] = [];
   private results!: ResultsData;
+  private readonly labels = ['REVANCHE', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
 
   constructor() {
     super('Results');
@@ -26,60 +26,65 @@ export class ResultsScene extends Phaser.Scene {
     this.results = data;
     svc().input.flush();
     this.cursor = 0;
-    new StageView(this, 'castle_courtyard');
+    new StageView(this, data.setup.stageId);
     this.cameras.main.setRoundPixels(true).setScroll(REF_CENTER.x - 320, REF_CENTER.y - 180 - 40);
     this.cameras.main.fadeIn(250, 26, 20, 34);
-    this.add.rectangle(320, 180, 640, 360, PAL.ink, 0.45).setScrollFactor(0);
+    this.add.rectangle(320, 180, 640, 360, PAL.ink, 0.5).setScrollFactor(0);
 
-    const won = data.winnerTeam === data.playerTeam;
+    const human = data.setup.slots.findIndex((s) => s.bot === null);
+    const humanTeam = human >= 0 ? data.setup.slots[human].team : -99;
     const draw = data.winnerTeam < 0;
-    const title = draw ? 'EMPATE' : won ? 'VITÓRIA!' : 'DERROTA';
-    pixelText(this, 321, 29, title, { scale: 4, align: 'center', color: PAL.ink, depth: 5 });
-    pixelText(this, 320, 26, title, { scale: 4, align: 'center', color: won ? PAL.gold[3] : draw ? PAL.steel[3] : PAL.fire[1], depth: 6 });
+    const won = data.winnerTeam === humanTeam;
+    const title = draw ? 'EMPATE' : human < 0 ? 'FIM DE JOGO' : won ? 'VITÓRIA!' : 'DERROTA';
+    pixelText(this, 321, 23, title, { scale: 4, align: 'center', color: PAL.ink, depth: 5 });
+    pixelText(this, 320, 20, title, { scale: 4, align: 'center', color: won ? PAL.gold[3] : draw ? PAL.steel[3] : PAL.fire[1], depth: 6 });
     const secs = Math.round(data.durationTicks / TICK_RATE);
-    pixelText(this, 320, 76, `CASTLE COURTYARD - BOT ${DIFFICULTY_LABEL[data.difficulty]} - ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, {
+    const mode = data.setup.mode === 'teams' ? 'TIMES 2V2' : 'TODOS CONTRA TODOS';
+    pixelText(this, 320, 70, `${getStage(data.setup.stageId).name} - ${mode} - ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, {
       align: 'center',
       color: PAL.sky[5],
       depth: 6,
     });
 
-    const rows: [string, (s: ResultsData['fighters'][number]) => string][] = [
+    const rows: [string, (f: ResultsData['fighters'][number]) => string][] = [
       ['ELIMINAÇÕES', (f) => String(f.stats.kos)],
       ['QUEDAS', (f) => String(f.stats.falls)],
       ['AUTODESTRUIÇÕES', (f) => String(f.stats.selfDestructs)],
       ['DANO CAUSADO', (f) => `${f.stats.damageDealt}%`],
       ['DANO RECEBIDO', (f) => `${f.stats.damageTaken}%`],
-      ['GOLPES ACERTADOS', (f) => String(f.stats.hitsLanded)],
-      ['VIDAS RESTANTES', (f) => String(f.stocks)],
+      ['GOLPES', (f) => String(f.stats.hitsLanded)],
+      ['VIDAS', (f) => String(f.stocks)],
     ];
-    this.add.image(320, 176, ensurePanel(this, 360, 150)).setScrollFactor(0).setDepth(5);
+    const n = data.fighters.length;
+    const colW = n > 2 ? 64 : 84;
+    const firstCol = (n > 2 ? 262 : 290) + colW / 2;
+    this.add.image(320, 172, ensurePanel(this, 400, 150)).setScrollFactor(0).setDepth(5);
     data.fighters.forEach((f, i) => {
-      const x = 400 + i * 80;
-      this.add.image(x, 116, `portrait_${f.team}`).setScrollFactor(0).setDepth(6);
-      pixelText(this, x, 128, f.name, { align: 'center', color: TEAM_RAMPS[f.team][3], depth: 6 });
+      const x = firstCol + i * colW;
+      const winner = !draw && f.team === data.winnerTeam;
+      this.add.image(x, 110, `portrait_${f.characterId}_${f.color}`).setScrollFactor(0).setDepth(6);
+      if (winner) pixelText(this, x, 92, '*', { align: 'center', color: PAL.gold[3], depth: 6 });
+      pixelText(this, x, 122, f.label, { align: 'center', color: TEAM_RAMPS[f.color][3], depth: 6 });
+      pixelText(this, x, 132, getCharacter(f.characterId).name.split(' ').slice(-1)[0], {
+        align: 'center', outline: false, color: PAL.steel[3], depth: 6,
+      });
     });
     rows.forEach(([label, get], r) => {
-      const y = 146 + r * 12;
-      pixelText(this, 160, y, label, { color: PAL.steel[3], depth: 6, outline: false });
-      data.fighters.forEach((f, i) => pixelText(this, 400 + i * 80, y, get(f), { align: 'center', depth: 6 }));
+      const y = 148 + r * 11;
+      pixelText(this, 132, y, label, { color: PAL.steel[3], depth: 6, outline: false });
+      data.fighters.forEach((f, i) => pixelText(this, firstCol + i * colW, y, get(f), { align: 'center', depth: 6 }));
     });
 
-    this.options = ['REVANCHE', 'MENU PRINCIPAL'].map((label, i) =>
-      pixelText(this, 320, 272 + i * 14, label, { align: 'center', depth: 6 }),
-    );
-    pixelText(this, 320, 336, 'RESULTADO LOCAL - PARTIDAS OFFLINE NÃO CONTAM PARA O RANKING', {
-      align: 'center',
-      outline: false,
-      color: PAL.sky[3],
-      depth: 6,
+    this.options = this.labels.map((label, i) => pixelText(this, 320, 262 + i * 14, label, { align: 'center', depth: 6 }));
+    pixelText(this, 320, 340, 'PARTIDAS OFFLINE NÃO CONTAM PARA O RANKING', {
+      align: 'center', outline: false, color: PAL.sky[3], depth: 6,
     });
     this.refresh();
   }
 
   private refresh() {
-    const labels = ['REVANCHE', 'MENU PRINCIPAL'];
     this.options.forEach((t, i) => {
-      setPixelText(t, i === this.cursor ? `> ${labels[i]} <` : labels[i]);
+      setPixelText(t, i === this.cursor ? `> ${this.labels[i]} <` : this.labels[i]);
       t.setTint(i === this.cursor ? PAL.gold[3] : PAL.steel[3]);
     });
   }
@@ -87,14 +92,16 @@ export class ResultsScene extends Phaser.Scene {
   override update(): void {
     const { input, audio } = svc();
     input.update();
+    const n = this.labels.length;
     if (input.wasPressed('up') || input.wasPressed('down')) {
-      this.cursor = 1 - this.cursor;
+      this.cursor = (this.cursor + (input.wasPressed('up') ? n - 1 : 1)) % n;
       audio.play('ui_move', 'ui');
       this.refresh();
     }
     if (input.wasPressed('confirm')) {
       audio.play('ui_confirm', 'ui');
-      if (this.cursor === 0) this.scene.start('Match', { difficulty: this.results.difficulty });
+      if (this.cursor === 0) this.scene.start('Match', this.results.setup);
+      else if (this.cursor === 1) this.scene.start('Select', { setup: this.results.setup });
       else this.scene.start('Title');
     } else if (input.wasPressed('back')) {
       audio.play('ui_back', 'ui');

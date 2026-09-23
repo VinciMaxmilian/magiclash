@@ -5,6 +5,7 @@ import { BootScene } from './game/scenes/BootScene';
 import { TitleScene } from './game/scenes/TitleScene';
 import { MatchScene } from './game/scenes/MatchScene';
 import { ResultsScene } from './game/scenes/ResultsScene';
+import { SelectScene } from './game/scenes/SelectScene';
 
 const BASE_W = 640;
 const BASE_H = 360;
@@ -24,18 +25,25 @@ const game = new Phaser.Game({
   input: { keyboard: false, gamepad: false, mouse: true, touch: true },
   // Audio is our own WebAudio bus system (game/audio).
   audio: { noAudio: true },
-  scale: { mode: Phaser.Scale.NONE, width: BASE_W, height: BASE_H, zoom: 1 },
+  // Fill the browser window (keeping 16:9). Pixels stay crisp (nearest neighbour); at
+  // non-integer scales some art pixels are 1 screen pixel wider — accepted for full-window play.
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: BASE_W,
+    height: BASE_H,
+    fullscreenTarget: 'game',
+  },
   banner: __DEV_TOOLS__,
-  scene: [BootScene, TitleScene, MatchScene, ResultsScene],
+  scene: [BootScene, TitleScene, SelectScene, MatchScene, ResultsScene],
 });
 
-/** Integer scaling only (Art Bible §1): 1 art pixel = N screen pixels, letterboxed. */
-const fit = () => {
-  const k = Math.max(1, Math.floor(Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H)));
-  game.scale.setZoom(k);
-};
-window.addEventListener('resize', fit);
-fit();
+/** F toggles browser fullscreen (must come from a user gesture, so it's a key handler). */
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyF' || e.repeat) return;
+  if (game.scale.isFullscreen) game.scale.stopFullscreen();
+  else game.scale.startFullscreen();
+});
 
 if (__DEV_TOOLS__) {
   // DEV-only handle for manual debugging and browser smoke tests. Not in production builds.

@@ -89,4 +89,5 @@ export const CONTROL_HINTS = [
   ['ATAQUE PESADO', 'K / X'],
   ['ESQUIVA', 'L / C / SHIFT'],
   ['PAUSA', 'ESC'],
+  ['TELA CHEIA', 'F'],
 ] as const;

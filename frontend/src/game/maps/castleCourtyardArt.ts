@@ -44,11 +44,13 @@ export interface StageArt {
   parallax: ParallaxLayer[];
   world: WorldLayer;
   torches: TorchSpot[];
+  /** Ambient particles drawn by StageView. */
+  ambient: 'embers' | 'fireflies' | 'snow';
 }
 
-const margins = (sf: number) => ({ mx: Math.ceil(PAN_X * sf) + 8, my: Math.ceil(PAN_Y * sf) + 8 });
+export const margins = (sf: number) => ({ mx: Math.ceil(PAN_X * sf) + 8, my: Math.ceil(PAN_Y * sf) + 8 });
 
-const smoothNoise = (x: number, seed: number): number => {
+export const smoothNoise = (x: number, seed: number): number => {
   const i = Math.floor(x);
   const f = x - i;
   const a = hashNoise(i, 0, seed);
@@ -491,6 +493,7 @@ export const buildCastleCourtyardArt = (): StageArt => {
     parallax,
     world: { key: 'cc_world', buf: drawGameplay(), x: WORLD_X, y: WORLD_Y, depth: -10 },
     torches,
+    ambient: 'embers',
   };
 };
 

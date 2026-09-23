@@ -5,13 +5,15 @@ import {
   Simulation,
   TICK_RATE,
   TICK_SECONDS,
-  type BotDifficulty,
+  getCharacter,
+  type AttackDefinition,
   type FighterState,
   type SimEvent,
 } from '@magiclash/shared';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { FighterView } from '../render/FighterView';
+import { ProjectileViews } from '../render/ProjectileView';
 import { EffectManager } from '../effects/EffectManager';
 import { SLASHES } from '../render/effectSprites';
 import { PAL, TEAM_RAMPS, type TeamColor } from '../render/palette';
@@ -20,23 +22,31 @@ import { Hud } from '../../ui/Hud';
 import { pixelText, setPixelText } from '../../ui/text';
 import type { DebugOverlay } from '../debug/DebugOverlay';
 import type { SfxId } from '../audio/sfx';
-import { DIFFICULTY_LABEL } from './labels';
-
-export interface MatchSceneData {
-  difficulty: BotDifficulty;
-  seed?: number;
-}
+import { defaultSetup, type MatchSetup } from '../match/setup';
 
 export interface ResultsData {
+  setup: MatchSetup;
   winnerTeam: number;
-  playerTeam: number;
-  difficulty: BotDifficulty;
   durationTicks: number;
-  fighters: { name: string; team: TeamColor; stats: FighterState['stats']; stocks: number }[];
+  fighters: { label: string; characterId: string; color: TeamColor; team: number; stats: FighterState['stats']; stocks: number }[];
 }
 
-const STAGE_ID = 'castle_courtyard';
-const TEAMS: TeamColor[] = ['blue', 'red'];
+type Element = 'fire' | 'ice' | 'lightning' | 'steel';
+const ELEMENT_RAMP: Record<Element, readonly number[]> = {
+  fire: PAL.fire,
+  ice: PAL.ice,
+  lightning: PAL.lightning,
+  steel: PAL.steel,
+};
+const CHARACTER_ELEMENT: Record<string, Element> = { fire_mage: 'fire', ice_mage: 'ice', lightning_mage: 'lightning' };
+
+const elementOfEffect = (effect: string, characterId: string): Element => {
+  if (effect.startsWith('fire')) return 'fire';
+  if (effect.startsWith('frost')) return 'ice';
+  if (effect.startsWith('shock')) return 'lightning';
+  return CHARACTER_ELEMENT[characterId] ?? 'steel';
+};
+
 const MAX_STEPS_PER_FRAME = 5;
 const END_DELAY_SECONDS = 2.2;
 
@@ -46,9 +56,12 @@ interface Indicator {
 }
 
 export class MatchScene extends Phaser.Scene {
+  private setup!: MatchSetup;
   private sim!: Simulation;
-  private bot!: BotController;
+  private bots: BotController[] = [];
+  private human = -1;
   private views: FighterView[] = [];
+  private projectiles!: ProjectileViews;
   private fx!: EffectManager;
   private stageView!: StageView;
   private hud!: Hud;
@@ -60,7 +73,6 @@ export class MatchScene extends Phaser.Scene {
   private pauseItems: Phaser.GameObjects.BitmapText[] = [];
   private pauseCursor = 0;
 
-  private difficulty: BotDifficulty = 'medium';
   private prev: { x: number; y: number }[] = [];
   private acc = 0;
   private renderTick = 0;
@@ -76,24 +88,22 @@ export class MatchScene extends Phaser.Scene {
     super('Match');
   }
 
-  create(data: MatchSceneData): void {
+  create(data: Partial<MatchSetup> & { difficulty?: MatchSetup['slots'][number]['bot'] }): void {
     const s = svc();
     s.input.flush();
-    this.difficulty = data.difficulty ?? 'medium';
-    const seed = data.seed ?? (Math.floor(Math.random() * 0x7fffffff) | 0);
+    this.setup = data.slots ? (data as MatchSetup) : defaultSetup(data.difficulty ?? s.settings.difficulty);
+    const seed = Math.floor(Math.random() * 0x7fffffff) | 0;
 
     this.sim = new Simulation({
-      stageId: STAGE_ID,
-      fighters: [
-        { characterId: 'knight', team: 0, name: 'VOCÊ' },
-        { characterId: 'knight', team: 1, name: 'BOT' },
-      ],
-      stocks: 3,
-      timeLimit: 240,
+      stageId: this.setup.stageId,
+      fighters: this.setup.slots.map((sl) => ({ characterId: sl.characterId, team: sl.team, name: sl.label })),
+      stocks: this.setup.stocks,
+      timeLimit: this.setup.timeLimit,
       seed,
       countdownTicks: 3 * TICK_RATE,
     });
-    this.bot = new BotController(this.sim, 1, this.difficulty, seed + 1);
+    this.human = this.setup.slots.findIndex((sl) => sl.bot === null);
+    this.bots = this.setup.slots.flatMap((sl, i) => (sl.bot ? [new BotController(this.sim, i, sl.bot, seed + i * 17)] : []));
 
     this.acc = 0;
     this.swingShown = [];
@@ -103,10 +113,21 @@ export class MatchScene extends Phaser.Scene {
     this.endTimer = 0;
     this.leaving = false;
     this.fx = new EffectManager(this);
-    this.stageView = new StageView(this, STAGE_ID, this.fx);
-    this.views = this.sim.state.fighters.map((_, i) => new FighterView(this, TEAMS[i]));
+    this.stageView = new StageView(this, this.setup.stageId, this.fx);
+    this.projectiles = new ProjectileViews(this);
+    this.views = this.setup.slots.map(
+      (sl, i) => new FighterView(this, sl.characterId, sl.color, sl.label, this.sim.characterOf(this.sim.state.fighters[i]).body.h),
+    );
     this.prev = this.sim.state.fighters.map((f) => ({ x: f.x, y: f.y }));
-    this.hud = new Hud(this, this.sim.state.fighters, TEAMS, ['VOCÊ', `BOT ${DIFFICULTY_LABEL[this.difficulty]}`]);
+    this.hud = new Hud(
+      this,
+      this.sim.state.fighters,
+      this.setup.slots.map((sl) => ({
+        portrait: `portrait_${sl.characterId}_${sl.color}`,
+        label: `${sl.label} ${getCharacter(sl.characterId).name}`,
+        color: sl.color,
+      })),
+    );
     this.createIndicators();
     this.createPauseMenu();
 
@@ -126,6 +147,7 @@ export class MatchScene extends Phaser.Scene {
     s.audio.startAmbient();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       s.audio.stopAmbient();
+      this.projectiles.clear();
       this.debug = undefined;
       this.indicators = [];
       this.views = [];
@@ -179,47 +201,125 @@ export class MatchScene extends Phaser.Scene {
     const { input } = svc();
     const fighters = this.sim.state.fighters;
     this.prev = fighters.map((f) => ({ x: f.x, y: f.y }));
-    const inputs = [input.gameplayFrame(), this.bot.think(this.sim)];
+    const inputs = fighters.map(() => 0);
+    if (this.human >= 0) inputs[this.human] = input.gameplayFrame();
+    for (const b of this.bots) inputs[b.index] = b.think(this.sim);
     const events = this.sim.step(inputs);
     for (const e of events) this.onEvent(e);
 
+    const tick = this.sim.state.tick;
     fighters.forEach((f, i) => {
-      // Swing effects + whoosh on the first active frame.
       const atk = this.sim.attackOf(f);
-      if (atk && f.attack && f.attack.frame >= atk.startup && this.swingShown[i] !== f.attack) {
-        this.swingShown[i] = f.attack;
-        this.onActiveStart(i, atk.effect, atk.sound);
+      const el = elementOfEffect(atk?.effect ?? '', f.characterId);
+      if (atk && f.attack) {
+        // Swing effects + whoosh on the first active frame.
+        if (f.attack.frame >= atk.startup && this.swingShown[i] !== f.attack) {
+          this.swingShown[i] = f.attack;
+          this.onActiveStart(i, atk);
+        }
+        // Charging: particles gathering toward the fighter.
+        if (atk.charge && f.attack.charge > 0 && f.attack.frame === atk.charge.frame && tick % 3 === 0) {
+          const a = Math.random() * Math.PI * 2;
+          const ramp = el === 'steel' ? PAL.gold : ELEMENT_RAMP[el];
+          this.fx.burst(f.x + f.facing * 10 + Math.cos(a) * 16, f.y - 22 + Math.sin(a) * 16, 1, [ramp[3], ramp[2]], {
+            speed: 1.2, angle: a + Math.PI, spread: 0.2, life: 12, gravity: 0, drag: 1,
+          });
+        }
+        // Elemental trails on moves like fire jet / plunges.
+        if (atk.effect.endsWith('_trail') && f.attack.frame >= atk.startup && tick % 2 === 0) {
+          const ramp = ELEMENT_RAMP[el];
+          this.fx.burst(f.x, f.y - 4, 2, [ramp[2], ramp[3], ramp[4] ?? ramp[3]], { speed: 0.8, angle: Math.PI / 2, spread: 1.2, life: 16, gravity: 0.05 });
+        }
+      }
+      // Chilled fighters shed frost.
+      if (f.slowTicks > 0 && f.state !== 'dead' && tick % 6 === 0) {
+        this.fx.burst(f.x + (Math.random() - 0.5) * 12, f.y - Math.random() * 30, 1, [PAL.ice[3], PAL.ice[4]], { speed: 0.3, life: 20, gravity: 0.03 });
       }
       // Knockback trails while flying fast.
       if (f.state === 'hitstun' && f.hitlag === 0) {
         const speed = Math.hypot(f.vx, f.vy);
-        if (speed > COMBAT.trailSpeed && this.sim.state.tick % 2 === 0) {
-          this.fx.afterimage(this.views[i].sprite, TEAM_RAMPS[TEAMS[i]][3], 10);
-          this.fx.burst(f.x, f.y - 14, 1, [PAL.steel[4], TEAM_RAMPS[TEAMS[i]][2]], { speed: 0.4, life: 14, gravity: 0 });
+        if (speed > COMBAT.trailSpeed && tick % 2 === 0) {
+          const color = this.setup.slots[i].color;
+          this.fx.afterimage(this.views[i].sprite, TEAM_RAMPS[color][3], 10);
+          this.fx.burst(f.x, f.y - 14, 1, [PAL.steel[4], TEAM_RAMPS[color][2]], { speed: 0.4, life: 14, gravity: 0 });
         }
       }
     });
+    // Elemental projectile trails
+    if (tick % 2 === 0) {
+      for (const p of this.sim.state.projectiles) {
+        if (p.stuck >= 0 || p.exploding > 0) continue;
+        const def = this.sim.projectileDef(p);
+        if (def.attached || def.grounded) continue;
+        const sp = def.sprite;
+        const ramp = sp.includes('fire') ? PAL.fire : sp.includes('ice') ? PAL.ice : sp.includes('ball') || sp.includes('spark') ? PAL.lightning : null;
+        if (ramp) this.fx.burst(p.x, p.y, 1, [ramp[2], ramp[3]], { speed: 0.3, life: 12, gravity: -0.02 });
+      }
+    }
   }
 
-  private play(id: SfxId, pitch = 1) {
-    svc().audio.play(id, 'sfx', pitch);
+  private play(id: string, pitch = 1) {
+    svc().audio.play(id as SfxId, 'sfx', pitch);
   }
 
-  private onActiveStart(i: number, effect: string, sound: string) {
+  private onActiveStart(i: number, atk: AttackDefinition) {
     const f = this.sim.state.fighters[i];
     const follow = () => {
       const g = this.sim.state.fighters[i];
       return g.state === 'dead' ? null : { x: this.views[i].sprite.x, y: this.views[i].sprite.y, flip: g.facing < 0 };
     };
+    const el = elementOfEffect(atk.effect, f.characterId);
+    const tint = el === 'steel' ? undefined : ELEMENT_RAMP[el][3];
+    const effect = atk.effect;
     const slash = SLASHES[effect];
     if (slash) {
-      this.fx.spawn(`fx_${effect}`, f.x, f.y, { flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 2 });
+      this.fx.spawn(`fx_${effect}`, f.x, f.y, { flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 2, tint });
+    } else if (effect === 'fire_arc' || effect === 'frost_arc') {
+      const d = SLASHES.slash_up;
+      this.fx.spawn('fx_slash_up', f.x, f.y, { flip: f.facing < 0, follow, dx: d.ox, dy: d.oy, frameTicks: 2, tint });
+    } else if (effect === 'spin') {
+      const d = SLASHES.slash_wide;
+      for (const flip of [false, true]) {
+        this.fx.spawn('fx_slash_wide', f.x, f.y, {
+          flip,
+          follow: () => {
+            const p = follow();
+            return p && { ...p, flip };
+          },
+          dx: d.ox,
+          dy: d.oy,
+          frameTicks: 3,
+        });
+      }
+    } else if (effect.endsWith('_burst') || effect === 'shock_arc') {
+      const ramp = ELEMENT_RAMP[el];
+      this.fx.spawn('fx_burst', f.x + f.facing * (effect === 'shock_arc' ? 12 : 0), f.y - 18, { frameTicks: 2, tint: ramp[3] });
+      this.fx.burst(f.x, f.y - 18, 12, [ramp[2], ramp[3], ramp[4] ?? ramp[3]], { speed: 2.4, life: 18, gravity: el === 'fire' ? -0.04 : 0.06 });
+      this.fx.shake(2, 6);
     } else if (effect === 'thrust') {
       this.fx.spawn('fx_thrust', f.x, f.y, { flip: f.facing < 0, follow, dx: 12, dy: -19, frameTicks: 3 });
     } else if (effect === 'thrust_down' || effect === 'plunge') {
       this.fx.spawn(`fx_${effect}`, f.x, f.y, { follow, dx: 0, dy: effect === 'plunge' ? -40 : -30, frameTicks: 3 });
     }
-    this.play(sound === 'sword_heavy' ? 'sword_heavy' : 'sword_light');
+    this.play(atk.sound);
+  }
+
+  private hitEffectFor(e: Extract<SimEvent, { type: 'hit' }>): { key: string; element: Element } {
+    const attacker = this.sim.state.fighters[e.attacker];
+    const projId = e.attackId.split(':')[0];
+    const pdef = this.sim.projectileDefsOf(attacker).get(projId);
+    if (pdef) {
+      const h = pdef.hitEffect;
+      if (h === 'explosion') return { key: 'fx_spark_big', element: 'fire' };
+      if (h === 'frost') return { key: 'fx_frost', element: 'ice' };
+      if (h === 'shock') return { key: 'fx_shock', element: 'lightning' };
+      return { key: h === 'spark_big' ? 'fx_spark_big' : 'fx_spark', element: 'steel' };
+    }
+    const atk = this.sim.attacksOf(attacker).get(e.attackId);
+    const el = elementOfEffect(atk?.effect ?? '', attacker.characterId);
+    if (el === 'ice') return { key: 'fx_frost', element: el };
+    if (el === 'lightning') return { key: 'fx_shock', element: el };
+    return { key: e.damage >= 10 || e.launch >= 9 ? 'fx_spark_big' : 'fx_spark', element: el };
   }
 
   private onEvent(e: SimEvent): void {
@@ -227,8 +327,13 @@ export class MatchScene extends Phaser.Scene {
     switch (e.type) {
       case 'hit': {
         const big = e.damage >= 10 || e.launch >= 9;
-        this.fx.spawn(big ? 'fx_spark_big' : 'fx_spark', e.x, e.y, { frameTicks: 2, depth: 26 });
-        this.fx.burst(e.x, e.y, big ? 14 : 7, [PAL.fire[4], PAL.fire[3], PAL.white], {
+        const { key, element } = this.hitEffectFor(e);
+        const ramp = element === 'steel' ? PAL.fire : ELEMENT_RAMP[element];
+        this.fx.spawn(key, e.x, e.y, { frameTicks: 2, depth: 26 });
+        if (key !== 'fx_spark' && key !== 'fx_spark_big') {
+          this.fx.spawn(big ? 'fx_spark_big' : 'fx_spark', e.x, e.y, { frameTicks: 2, depth: 26, tint: ramp[3] });
+        }
+        this.fx.burst(e.x, e.y, big ? 14 : 7, [ramp[4] ?? ramp[3], ramp[3], PAL.white], {
           speed: big ? 3.2 : 2.2,
           angle: e.angle,
           spread: 1.4,
@@ -238,7 +343,39 @@ export class MatchScene extends Phaser.Scene {
         this.fx.shake(Math.min(6, 1 + e.launch * 0.3), big ? 16 : 8);
         this.views[e.target].onHit();
         this.play(big ? 'hit_heavy' : 'hit_light', big ? 1 : 1.1);
+        if (element === 'ice') this.play('ice');
+        if (element === 'lightning') this.play('zap');
         if (fighters[e.target].grounded) this.fx.spawn('fx_dust', fighters[e.target].x, fighters[e.target].y, { frameTicks: 3 });
+        break;
+      }
+      case 'projectile_spawn': {
+        const def = this.sim.projectileDefsOf(fighters[e.owner]).get(e.defId);
+        if (def?.sound) this.play(def.sound);
+        if (def?.grounded) this.fx.spawn('fx_dust', e.x, e.y + def.h / 2, { frameTicks: 3 });
+        if (def?.id === 'thunderstrike' || def?.id === 'thunder_beam') this.fx.shake(3, 10);
+        break;
+      }
+      case 'projectile_end':
+        if (e.reason === 'stage') {
+          this.fx.burst(e.x, e.y, 5, [PAL.stone[3], PAL.stone[4]], { speed: 1.2, life: 12 });
+          this.play('thud');
+        }
+        break;
+      case 'explosion':
+        this.fx.burst(e.x, e.y, 16, [PAL.fire[2], PAL.fire[3], PAL.fire[4]], { speed: 3, life: 20, gravity: -0.03 });
+        this.fx.shake(4, 12);
+        this.play('explosion');
+        break;
+      case 'weapon_back': {
+        const f = fighters[e.fighter];
+        this.fx.spawn('fx_ring', f.x, f.y - 20, { frameTicks: 3 });
+        this.play('weapon_back');
+        break;
+      }
+      case 'charge_full': {
+        const f = fighters[e.fighter];
+        this.fx.spawn('fx_burst', f.x + f.facing * 8, f.y - 22, { frameTicks: 1, tint: PAL.gold[3] });
+        this.play('charge_full');
         break;
       }
       case 'jump': {
@@ -272,23 +409,17 @@ export class MatchScene extends Phaser.Scene {
         this.play('dodge');
         break;
       case 'ko': {
-        const team = TEAM_RAMPS[TEAMS[e.fighter]];
+        const team = TEAM_RAMPS[this.setup.slots[e.fighter].color];
         const cx = Math.max(-300, Math.min(300, e.x));
         const cy = Math.max(-260, Math.min(160, e.y));
         const toCenter = Math.atan2(-60 - cy, 0 - cx);
         this.fx.burst(cx, cy, 40, [team[3], team[2], PAL.white, PAL.fire[4]], {
-          speed: 5,
-          angle: toCenter,
-          spread: 1.2,
-          life: 34,
-          gravity: 0,
-          size: 2,
-          drag: 0.92,
+          speed: 5, angle: toCenter, spread: 1.2, life: 34, gravity: 0, size: 2, drag: 0.92,
         });
         this.fx.shake(6, 24);
         this.play('ko');
-        const byPlayer = e.by === 0;
-        this.hud.showBanner(byPlayer ? 'KO!' : e.fighter === 0 ? 'CAIU!' : 'KO!', byPlayer ? PAL.gold[3] : team[3], 45);
+        const byHuman = e.by >= 0 && e.by === this.human;
+        this.hud.showBanner(byHuman ? 'KO!' : e.fighter === this.human ? 'CAIU!' : 'KO!', byHuman ? PAL.gold[3] : team[3], 45);
         break;
       }
       case 'respawn':
@@ -303,9 +434,12 @@ export class MatchScene extends Phaser.Scene {
         this.hud.showBanner('LUTE!', PAL.gold[3], 45);
         svc().audio.play('go', 'ui');
         break;
-      case 'match_end':
-        this.hud.showBanner(e.winnerTeam === 0 ? 'VITÓRIA!' : e.winnerTeam < 0 ? 'EMPATE' : 'DERROTA', PAL.gold[3], 200);
+      case 'match_end': {
+        const humanTeam = this.human >= 0 ? this.setup.slots[this.human].team : -99;
+        const label = e.winnerTeam < 0 ? 'EMPATE' : this.human < 0 ? 'FIM!' : e.winnerTeam === humanTeam ? 'VITÓRIA!' : 'DERROTA';
+        this.hud.showBanner(label, PAL.gold[3], 200);
         break;
+      }
       default:
         break;
     }
@@ -323,20 +457,20 @@ export class MatchScene extends Phaser.Scene {
       const y = jump ? f.y : p.y + (f.y - p.y) * alpha;
       this.views[i].update(f, x, y, this.sim.attackOf(f), t);
     });
-
+    this.projectiles.update(this.sim, t);
     this.fx.update(dtTicks);
     this.stageView.update(dtTicks);
     this.updateCamera(dtTicks);
     this.updateIndicators();
     this.hud.update(fighters, this.sim.state.match, dtTicks);
-    this.debug?.update(this.sim, this.fps, [this.bot], this.slowmo);
+    this.debug?.update(this.sim, this.fps, this.bots, this.slowmo);
   }
 
   private updateCamera(dtTicks: number): void {
     const alive = this.sim.state.fighters.filter((f) => f.state !== 'dead');
     const bz = this.sim.stage.blastZone;
-    // Only frame fighters that are reasonably close to the arena, so a launched fighter
-    // doesn't drag the camera to the edge of the world.
+    // Only frame fighters reasonably close to the arena, so a launched fighter doesn't drag
+    // the camera to the edge of the world.
     const framed = alive.filter((f) => f.x > bz.left + 80 && f.x < bz.right - 80 && f.y > bz.top + 80);
     const list = framed.length ? framed : alive;
     let tx = 0;
@@ -360,10 +494,10 @@ export class MatchScene extends Phaser.Scene {
   // ── Off-screen indicators ───────────────────────────────────────────────────
 
   private createIndicators(): void {
-    this.indicators = this.sim.state.fighters.map((_, i) => {
+    this.indicators = this.setup.slots.map((sl) => {
       const root = this.add.container(0, 0).setDepth(900);
-      root.add(this.add.image(0, 0, ensurePanel(this, 26, 26, TEAM_RAMPS[TEAMS[i]][2])));
-      root.add(this.add.image(0, -1, `portrait_${TEAMS[i]}`));
+      root.add(this.add.image(0, 0, ensurePanel(this, 26, 26, TEAM_RAMPS[sl.color][2])));
+      root.add(this.add.image(0, -1, `portrait_${sl.characterId}_${sl.color}`));
       const damage = pixelText(this, 0, 13, '', { align: 'center', fixed: false });
       root.add(damage);
       root.setScrollFactor(0, 0, true).setVisible(false);
@@ -387,14 +521,15 @@ export class MatchScene extends Phaser.Scene {
 
   // ── Pause ───────────────────────────────────────────────────────────────────
 
+  private readonly pauseLabels = ['CONTINUAR', 'REINICIAR', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
+
   private createPauseMenu(): void {
     this.pauseMenu = this.add.container(0, 0).setDepth(2000);
-    const dim = this.add.rectangle(320, 180, 640, 360, PAL.ink, 0.6);
-    this.pauseMenu.add(dim);
-    this.pauseMenu.add(this.add.image(320, 176, ensurePanel(this, 200, 92)));
-    this.pauseMenu.add(pixelText(this, 320, 138, 'PAUSA', { align: 'center', color: PAL.gold[3], fixed: false }));
-    this.pauseItems = ['CONTINUAR', 'REINICIAR', 'MENU PRINCIPAL'].map((label, i) => {
-      const t = pixelText(this, 256, 160 + i * 14, label, { fixed: false });
+    this.pauseMenu.add(this.add.rectangle(320, 180, 640, 360, PAL.ink, 0.6));
+    this.pauseMenu.add(this.add.image(320, 176, ensurePanel(this, 220, 106)));
+    this.pauseMenu.add(pixelText(this, 320, 134, 'PAUSA', { align: 'center', color: PAL.gold[3], fixed: false }));
+    this.pauseItems = this.pauseLabels.map((label, i) => {
+      const t = pixelText(this, 246, 154 + i * 14, label, { fixed: false });
       this.pauseMenu.add(t);
       return t;
     });
@@ -410,17 +545,17 @@ export class MatchScene extends Phaser.Scene {
   }
 
   private refreshPause(): void {
-    const labels = ['CONTINUAR', 'REINICIAR', 'MENU PRINCIPAL'];
     this.pauseItems.forEach((t, i) => {
-      setPixelText(t, `${i === this.pauseCursor ? '> ' : '  '}${labels[i]}`);
+      setPixelText(t, `${i === this.pauseCursor ? '> ' : '  '}${this.pauseLabels[i]}`);
       t.setTint(i === this.pauseCursor ? PAL.gold[3] : PAL.steel[3]);
     });
   }
 
   private updatePauseMenu(): void {
     const { input, audio } = svc();
-    if (input.wasPressed('up')) this.pauseCursor = (this.pauseCursor + 2) % 3;
-    if (input.wasPressed('down')) this.pauseCursor = (this.pauseCursor + 1) % 3;
+    const n = this.pauseLabels.length;
+    if (input.wasPressed('up')) this.pauseCursor = (this.pauseCursor + n - 1) % n;
+    if (input.wasPressed('down')) this.pauseCursor = (this.pauseCursor + 1) % n;
     if (input.wasPressed('up') || input.wasPressed('down')) audio.play('ui_move', 'ui');
     this.refreshPause();
     if (input.consume('back')) {
@@ -430,7 +565,8 @@ export class MatchScene extends Phaser.Scene {
     if (!input.wasPressed('confirm')) return;
     audio.play('ui_confirm', 'ui');
     if (this.pauseCursor === 0) this.setPaused(false);
-    else if (this.pauseCursor === 1) this.scene.restart({ difficulty: this.difficulty });
+    else if (this.pauseCursor === 1) this.scene.restart(this.setup);
+    else if (this.pauseCursor === 2) this.scene.start('Select', { setup: this.setup });
     else this.scene.start('Title');
   }
 
@@ -440,11 +576,17 @@ export class MatchScene extends Phaser.Scene {
     this.leaving = true;
     const s = this.sim.state;
     const data: ResultsData = {
+      setup: this.setup,
       winnerTeam: s.match.winnerTeam ?? -1,
-      playerTeam: 0,
-      difficulty: this.difficulty,
       durationTicks: s.match.endTick,
-      fighters: s.fighters.map((f, i) => ({ name: i === 0 ? 'VOCÊ' : 'BOT', team: TEAMS[i], stats: f.stats, stocks: f.stocks })),
+      fighters: s.fighters.map((f, i) => ({
+        label: this.setup.slots[i].label,
+        characterId: f.characterId,
+        color: this.setup.slots[i].color,
+        team: f.team,
+        stats: f.stats,
+        stocks: f.stocks,
+      })),
     };
     this.cameras.main.fadeOut(300, 26, 20, 34);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Results', data));

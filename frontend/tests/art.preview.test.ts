@@ -75,3 +75,28 @@ it.skipIf(!DIR)('castle courtyard composed view', async () => {
   view.blit(front.buf, Math.round(pf.x - scrollX * front.sf), Math.round(pf.y - scrollY * front.sf));
   save('castle_courtyard.png', view, 2);
 });
+
+it.skipIf(!DIR)('all fighters', async () => {
+  const { drawFighter, STYLES, framesForCharacter } = await import('../src/game/render/fighterSprite');
+  const { CHARACTERS, CHARACTER_ORDER } = await import('@magiclash/shared');
+  const pick = ['idle_0', 'run_2', 'jump_0'];
+  const rows = CHARACTER_ORDER.map((id) => {
+    const anims = CHARACTERS[id].attacks.map((a) => a.anim);
+    const frames = framesForCharacter(STYLES[id], anims).filter((f) => !f.name.startsWith('u_'));
+    const chosen = [...frames.filter((f) => pick.includes(f.name)), ...frames.filter((f) => f.name.includes('_active_0')).slice(0, 7)];
+    return { id, chosen };
+  });
+  const cols = 10;
+  const sheet = new PixelBuffer(cols * 48, rows.length * 48);
+  sheet.rect(0, 0, sheet.w, sheet.h, 0x5b5668);
+  const teams = ['blue', 'red', 'green', 'yellow', 'blue', 'red'] as const;
+  rows.forEach((r, ri) => {
+    r.chosen.slice(0, cols).forEach((f, i) => {
+      const k = drawFighter(f.pose, STYLES[r.id], teams[ri]);
+      const crop = new PixelBuffer(48, 48);
+      for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) if (k.alphaAt(x + 8, y + 12)) crop.set(x, y, k.colorAt(x + 8, y + 12));
+      sheet.blit(crop, i * 48, ri * 48);
+    });
+  });
+  save('fighters.png', sheet, 3);
+});

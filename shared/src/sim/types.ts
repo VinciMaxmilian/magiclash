@@ -17,6 +17,38 @@ export interface AttackInstance {
   frame: number;
   /** Fighter indices already hit by this instance (one hit per target per attack). */
   hit: number[];
+  /** Ticks spent charging (0 when the attack can't charge). */
+  charge: number;
+  /** Button bit that started the attack (used to keep charging while held). */
+  button: number;
+}
+
+export interface ProjectileState {
+  uid: number;
+  defId: string;
+  owner: number;
+  team: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  facing: 1 | -1;
+  age: number;
+  /** -1 while flying; ticks since it stuck into geometry otherwise. */
+  stuck: number;
+  /** Remaining ticks of explosion (0 = not exploding). */
+  exploding: number;
+  hitsLeft: number;
+  /** Last tick each fighter was hit by this projectile. */
+  hitTicks: Record<number, number>;
+  /** 0..1 charge ratio at spawn, and the damage/knockback multipliers it produced. */
+  charge: number;
+  dmgMul: number;
+  kbMul: number;
+  /** Offset from the owner for attached projectiles. */
+  ox: number;
+  oy: number;
+  dead: boolean;
 }
 
 export interface FighterStats {
@@ -81,6 +113,11 @@ export interface FighterState {
   lastHitTick: number;
   respawnTimer: number;
 
+  /** Weapon thrown and not recovered yet (barbarian). */
+  weaponOut: boolean;
+  slowTicks: number;
+  slowFactor: number;
+
   stats: FighterStats;
 }
 
@@ -100,6 +137,8 @@ export interface SimState {
   tick: number;
   stageId: string;
   fighters: FighterState[];
+  projectiles: ProjectileState[];
+  nextProjectileId: number;
   match: MatchState;
   rng: RngState;
 }
@@ -139,6 +178,11 @@ export type SimEvent =
   | { type: 'land'; fighter: number; speed: number }
   | { type: 'bounce'; fighter: number; x: number; y: number }
   | { type: 'dodge'; fighter: number }
+  | { type: 'projectile_spawn'; uid: number; owner: number; defId: string; x: number; y: number }
+  | { type: 'projectile_end'; uid: number; defId: string; reason: 'hit' | 'stage' | 'expire'; x: number; y: number }
+  | { type: 'explosion'; uid: number; defId: string; x: number; y: number }
+  | { type: 'weapon_back'; fighter: number; picked: boolean }
+  | { type: 'charge_full'; fighter: number }
   | { type: 'ko'; fighter: number; by: number; x: number; y: number }
   | { type: 'respawn'; fighter: number }
   | { type: 'countdown'; value: number }

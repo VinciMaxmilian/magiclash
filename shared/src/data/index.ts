@@ -1,15 +1,32 @@
 import type { CharacterDefinition } from '../characters/types';
 import type { StageDefinition } from '../physics/stage';
 import { KNIGHT } from './characters/knight';
+import { BARBARIAN } from './characters/barbarian';
+import { ARCHER } from './characters/archer';
+import { FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE } from './characters/mages';
 import { CASTLE_COURTYARD } from './stages/castleCourtyard';
+import { ENCHANTED_FOREST } from './stages/enchantedForest';
+import { FROZEN_FORTRESS } from './stages/frozenFortress';
 
 export const CHARACTERS: Readonly<Record<string, CharacterDefinition>> = {
   [KNIGHT.id]: KNIGHT,
+  [BARBARIAN.id]: BARBARIAN,
+  [ARCHER.id]: ARCHER,
+  [FIRE_MAGE.id]: FIRE_MAGE,
+  [ICE_MAGE.id]: ICE_MAGE,
+  [LIGHTNING_MAGE.id]: LIGHTNING_MAGE,
 };
+
+/** Display order in character select. */
+export const CHARACTER_ORDER = ['knight', 'barbarian', 'archer', 'fire_mage', 'ice_mage', 'lightning_mage'] as const;
 
 export const STAGES: Readonly<Record<string, StageDefinition>> = {
   [CASTLE_COURTYARD.id]: CASTLE_COURTYARD,
+  [ENCHANTED_FOREST.id]: ENCHANTED_FOREST,
+  [FROZEN_FORTRESS.id]: FROZEN_FORTRESS,
 };
+
+export const STAGE_ORDER = ['castle_courtyard', 'enchanted_forest', 'frozen_fortress'] as const;
 
 export const getCharacter = (id: string): CharacterDefinition => {
   const c = CHARACTERS[id];
@@ -23,4 +40,4 @@ export const getStage = (id: string): StageDefinition => {
   return s;
 };
 
-export { KNIGHT, CASTLE_COURTYARD };
+export { KNIGHT, BARBARIAN, ARCHER, FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE, CASTLE_COURTYARD, ENCHANTED_FOREST, FROZEN_FORTRESS };

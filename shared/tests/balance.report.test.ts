@@ -1,31 +1,80 @@
 import { it } from 'vitest';
 import { appendFileSync, writeFileSync } from 'node:fs';
-import { BotController, Simulation, type BotDifficulty } from '../src';
+import { BotController, CHARACTER_ORDER, Simulation, type BotDifficulty } from '../src';
 
-/** Opt-in balance report: STATS_OUT=path npm run sim:balance */
+/**
+ * Opt-in balance report (bot vs bot): STATS_OUT=path npm run sim:balance
+ * Writes the character matchup matrix and per-character KO/survival stats.
+ */
 const OUT = process.env.STATS_OUT ?? '';
+const SEEDS = Number(process.env.STATS_SEEDS ?? 6);
+
+const play = (c0: string, c1: string, d0: BotDifficulty, d1: BotDifficulty, seed: number) => {
+  const sim = new Simulation({
+    stageId: 'castle_courtyard',
+    fighters: [
+      { characterId: c0, team: 0, name: 'a' },
+      { characterId: c1, team: 1, name: 'b' },
+    ],
+    stocks: 3,
+    timeLimit: 300,
+    seed,
+    countdownTicks: 0,
+  });
+  const bots = [new BotController(sim, 0, d0, seed), new BotController(sim, 1, d1, seed + 100)];
+  const koPct: number[] = [];
+  const lastDmg = [0, 0];
+  while (sim.state.match.status !== 'ended') {
+    sim.state.fighters.forEach((f, i) => {
+      if (f.state !== 'dead') lastDmg[i] = f.damage;
+    });
+    for (const e of sim.step(bots.map((b) => b.think(sim)))) {
+      if (e.type === 'ko' && e.by >= 0) koPct.push(lastDmg[e.fighter]);
+    }
+  }
+  return { sim, koPct };
+};
+
 it.skipIf(!OUT)('balance report (bot vs bot)', () => {
   writeFileSync(OUT, '');
-  const pairs: [BotDifficulty, BotDifficulty][] = [['hard','hard'],['medium','medium'],['easy','easy'],['hard','easy'],['medium','easy'],['hard','medium']];
-  for (const [d0, d1] of pairs) {
-    let wins0 = 0, ticks = 0, kos = 0, sds = 0, hits = 0, unfinished = 0;
-    const koPct: number[] = [];
-    const n = 8;
-    for (let seed = 1; seed <= n; seed++) {
-      const sim = new Simulation({ stageId: 'castle_courtyard', fighters: [{characterId:'knight',team:0,name:'a'},{characterId:'knight',team:1,name:'b'}], stocks: 3, timeLimit: 0, seed, countdownTicks: 0 });
-      const bots = [new BotController(sim,0,d0,seed), new BotController(sim,1,d1,seed+100)];
-      const lastDmg = [0,0];
-      let t = 0;
-      for (; t < 60*300 && sim.state.match.status !== 'ended'; t++) {
-        sim.state.fighters.forEach((f,i)=>{ if (f.state!=='dead') lastDmg[i]=f.damage; });
-        const ev = sim.step(bots.map(b=>b.think(sim)));
-        for (const e of ev) { if (e.type==='ko' && e.by>=0) koPct.push(lastDmg[e.fighter]); if (e.type==='hit') hits++; }
+  const log = (s: string) => appendFileSync(OUT, `${s}\n`);
+  const chars = [...CHARACTER_ORDER];
+  const wins: Record<string, number> = {};
+  const games: Record<string, number> = {};
+  const sds: Record<string, number> = {};
+  const allKo: number[] = [];
+  let totalTicks = 0;
+  let matches = 0;
+  log(`hard vs hard, ${SEEDS} seeds per side\n`);
+  for (let i = 0; i < chars.length; i++) {
+    for (let j = i + 1; j < chars.length; j++) {
+      let wi = 0;
+      for (let s = 0; s < SEEDS; s++) {
+        for (const swap of [false, true]) {
+          const [a, b] = swap ? [chars[j], chars[i]] : [chars[i], chars[j]];
+          const { sim, koPct } = play(a, b, 'hard', 'hard', 1000 + s * 7 + (swap ? 3 : 0));
+          allKo.push(...koPct);
+          totalTicks += sim.state.match.endTick;
+          matches++;
+          const winner = sim.state.match.winnerTeam === 0 ? a : sim.state.match.winnerTeam === 1 ? b : null;
+          if (winner === chars[i]) wi++;
+          for (const c of [a, b]) games[c] = (games[c] ?? 0) + 1;
+          if (winner) wins[winner] = (wins[winner] ?? 0) + 1;
+          sim.state.fighters.forEach((f) => (sds[f.characterId] = (sds[f.characterId] ?? 0) + f.stats.selfDestructs));
+        }
       }
-      if (sim.state.match.status !== 'ended') unfinished++;
-      ticks += t; if (sim.state.match.winnerTeam === 0) wins0++;
-      for (const f of sim.state.fighters) { kos += f.stats.kos; sds += f.stats.selfDestructs; }
+      log(`${chars[i].padEnd(15)} vs ${chars[j].padEnd(15)} ${wi}/${SEEDS * 2}`);
     }
-    koPct.sort((a,b)=>a-b);
-    appendFileSync(OUT, `${d0} vs ${d1}: p0 wins ${wins0}/${n}, avg ${(ticks/n/60).toFixed(1)}s, kos ${kos}, SDs ${sds}, hits/match ${(hits/n).toFixed(0)}, KO% med ${koPct[Math.floor(koPct.length/2)]?.toFixed(0)} min ${koPct[0]?.toFixed(0)} max ${koPct.at(-1)?.toFixed(0)}, unfinished ${unfinished}\n`);
   }
-}, 120000);
+  allKo.sort((a, b) => a - b);
+  log('\nwin rate:');
+  for (const c of chars) log(`  ${c.padEnd(15)} ${(((wins[c] ?? 0) / games[c]) * 100).toFixed(0)}%   self-destructs ${sds[c] ?? 0}`);
+  log(`\navg match ${(totalTicks / matches / 60).toFixed(1)}s, KO% median ${allKo[Math.floor(allKo.length / 2)]?.toFixed(0)}`);
+
+  log('\ndifficulty ladder (knight mirror):');
+  for (const [d0, d1] of [['hard', 'medium'], ['medium', 'easy'], ['hard', 'easy']] as const) {
+    let w = 0;
+    for (let s = 0; s < SEEDS; s++) if (play('knight', 'knight', d0, d1, 50 + s).sim.state.match.winnerTeam === 0) w++;
+    log(`  ${d0} vs ${d1}: ${w}/${SEEDS}`);
+  }
+}, 600000);

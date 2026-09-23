@@ -30,8 +30,7 @@ export class Hud {
   constructor(
     private readonly scene: Phaser.Scene,
     fighters: FighterState[],
-    teams: TeamColor[],
-    labels: string[],
+    entries: { portrait: string; label: string; color: TeamColor }[],
   ) {
     const n = fighters.length;
     const gap = 12;
@@ -43,13 +42,13 @@ export class Hud {
       const root = scene.add.container(x, y).setScrollFactor(0).setDepth(DEPTH);
       root.add(scene.add.image(0, 0, panelKey).setOrigin(0, 0));
       root.add(scene.add.image(4, 4, ensurePanel(scene, 24, 24, 0xd9a24e)).setOrigin(0, 0));
-      root.add(scene.add.image(7, 7, `portrait_${teams[i]}`).setOrigin(0, 0));
-      root.add(pixelText(scene, 32, 4, labels[i], { outline: false, color: 0xb7c2d6, fixed: false }));
+      root.add(scene.add.image(7, 7, entries[i].portrait).setOrigin(0, 0));
+      root.add(pixelText(scene, 32, 4, entries[i].label, { outline: false, color: 0xb7c2d6, fixed: false }));
       const damage = pixelText(scene, PANEL_W - 6, 12, '0%', { scale: 2, fixed: false, align: 'right' });
       root.add(damage);
       const stocks: Phaser.GameObjects.Image[] = [];
       for (let s = 0; s < f.stocks; s++) {
-        const icon = scene.add.image(32 + s * 9, 17, `stock_${teams[i]}`).setOrigin(0, 0);
+        const icon = scene.add.image(32 + s * 9, 17, `stock_${entries[i].color}`).setOrigin(0, 0);
         stocks.push(icon);
         root.add(icon);
       }

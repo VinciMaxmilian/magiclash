@@ -87,7 +87,52 @@ export const computeAttackReach = (a: AttackDefinition, c: CharacterDefinition):
       maxY = Math.max(maxY, y + h.y + h.h);
     }
   }
+  // Projectiles: sweep their path for up to ~0.75 s of flight.
+  const defs = new Map((c.projectiles ?? []).map((p) => [p.id, p]));
+  for (const sp of a.projectiles ?? []) {
+    const d = defs.get(sp.id);
+    if (!d) continue;
+    const add = (px: number, py: number, w: number, h: number) => {
+      minX = Math.min(minX, px - w / 2);
+      minY = Math.min(minY, py - h / 2);
+      maxX = Math.max(maxX, px + w / 2);
+      maxY = Math.max(maxY, py + h / 2);
+    };
+    if (d.grounded) {
+      add(sp.x, -d.h / 2, d.w, d.h);
+      continue;
+    }
+    if (d.attached || d.speed === 0) {
+      add(sp.x, sp.y, d.w, d.h);
+      continue;
+    }
+    const ang = ((sp.angle ?? d.angle) * Math.PI) / 180;
+    let px = sp.x;
+    let py = sp.y;
+    let pvx = Math.cos(ang) * d.speed;
+    let pvy = -Math.sin(ang) * d.speed;
+    for (let t = 0; t < Math.min(d.lifetime, 45); t++) {
+      pvy = (pvy + d.gravity) * (d.drag ?? 1);
+      pvx *= d.drag ?? 1;
+      px += pvx;
+      py += pvy;
+      if (t % 3 === 0) add(px, py, d.w, d.h);
+    }
+  }
+  if (!Number.isFinite(minX)) return { x: 0, y: 0, w: 0, h: 0 };
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+};
+
+const REACH_CACHE = new Map<string, Map<string, Rect>>();
+
+/** Cached reach of any character's attack (the bot reads opponents' attacks too). */
+export const reachOf = (c: CharacterDefinition, attackId: string): Rect | undefined => {
+  let m = REACH_CACHE.get(c.id);
+  if (!m) {
+    m = new Map(c.attacks.map((a) => [a.id, computeAttackReach(a, c)]));
+    REACH_CACHE.set(c.id, m);
+  }
+  return m.get(attackId);
 };
 
 interface Candidate {
@@ -102,7 +147,6 @@ export class BotController {
   readonly difficulty: BotDifficulty;
   readonly profile: BotProfile;
   private readonly rng: RngState;
-  private readonly reach = new Map<string, Rect>();
   private readonly ledgeLeft: number;
   private readonly ledgeRight: number;
   private readonly stageTop: number;
@@ -126,10 +170,6 @@ export class BotController {
     this.ledgeLeft = main.x;
     this.ledgeRight = main.x + main.w;
     this.stageTop = main.y;
-
-    const f = sim.state.fighters[index];
-    const c = sim.characterOf(f);
-    for (const a of c.attacks) this.reach.set(a.id, computeAttackReach(a, c));
   }
 
   think(sim: Simulation): InputFrame {
@@ -167,6 +207,7 @@ export class BotController {
 
     // 2. React to incoming attacks (checked every tick, gated by reaction delay).
     if (t && this.checkThreat(sim, me, t)) return this.runQueue();
+    if (this.checkProjectileThreat(sim, me)) return this.runQueue();
 
     if (this.queue.length > 0) return this.runQueue();
 
@@ -291,6 +332,45 @@ export class BotController {
 
   // ── Threat reaction ───────────────────────────────────────────────────────
 
+  private checkProjectileThreat(sim: Simulation, me: FighterState): boolean {
+    const c = sim.characterOf(me);
+    const mine = c.hurtboxes.map((r) => toWorldRect(r, me.x, me.y, me.facing));
+    const seenBefore = this.reactionTicks();
+    for (const p of sim.state.projectiles) {
+      if (p.team === me.team || p.stuck >= 0 || p.age < seenBefore) continue;
+      const key = `p${p.uid}`;
+      if (this.handledThreat === key) continue;
+      const d = sim.projectileDef(p);
+      let px = p.x;
+      let py = p.y;
+      let vx = p.vx;
+      let vy = p.vy;
+      let threat = false;
+      for (let t = 0; t < 16 && !threat; t++) {
+        const r = { x: px - d.w / 2 - 6, y: py - d.h / 2 - 6, w: d.w + 12, h: d.h + 12 };
+        if (mine.some((m) => rectsOverlap(r, m))) threat = true;
+        vy += d.gravity;
+        px += vx;
+        py += vy;
+      }
+      if (!threat) continue;
+      this.handledThreat = key;
+      if (!chance(this.rng, this.profile.dodgeSkill)) return false;
+      this.mode = 'evade';
+      this.queue = [];
+      const canDodge = me.dodgeCooldown === 0 && (me.grounded || !me.airDodgeUsed);
+      if (me.grounded && py > me.y - 24) this.push(Btn.Jump, 10);
+      else if (canDodge) this.push(Btn.Dodge, 2);
+      else this.push(dirBits(p.vx > 0 ? 1 : -1), 6);
+      return true;
+    }
+    return false;
+  }
+
+  private reactionTicks(): number {
+    return this.profile.reactionTicks;
+  }
+
   private checkThreat(sim: Simulation, me: FighterState, t: Observation): boolean {
     if (t.state !== 'attack' || !t.attackId) return false;
     const key = `${t.index}:${t.attackId}:${t.tick - t.attackFrame}`;
@@ -302,7 +382,8 @@ export class BotController {
     const toActive = a.startup - t.attackFrame;
     if (toActive > 14 || t.attackFrame >= a.startup + a.active) return false;
 
-    const reach = this.reach.get(a.id)!;
+    const reach = reachOf(sim.characterOf(tf), a.id);
+    if (!reach) return false;
     const world = toWorldRect(reach, t.x, t.y, t.facing);
     const grown = { x: world.x - 8, y: world.y - 8, w: world.w + 16, h: world.h + 16 };
     const c = sim.characterOf(me);
@@ -355,7 +436,8 @@ export class BotController {
         const pick = chance(this.rng, p.accuracy)
           ? candidates[0]
           : candidates[nextInt(this.rng, 0, candidates.length - 1)];
-        this.push(pick.input | pick.button, 2);
+        const hold = pick.attack.charge && adx > 110 ? nextInt(this.rng, 10, pick.attack.charge.maxTicks) : 2;
+        this.push(pick.input | pick.button, hold);
         return;
       }
     }
@@ -368,6 +450,16 @@ export class BotController {
     let jump = false;
     let drop = false;
 
+    // Disarmed: the thrown weapon is stuck somewhere — go pick it up.
+    if (me.weaponOut && !chasing) {
+      const axe = sim.state.projectiles.find((pr) => pr.owner === this.index && pr.stuck >= 0);
+      if (axe && Math.abs(axe.x) < this.ledgeRight + 20) {
+        const dir = Math.abs(axe.x - me.x) > 4 ? Math.sign(axe.x - me.x) : 0;
+        this.push(dirBits(dir) | (axe.y < me.y - 30 && me.grounded ? Btn.Jump : 0), 8, axe.y < me.y - 30 ? Btn.Jump : 0);
+        return;
+      }
+    }
+
     if (chasing) {
       this.mode = 'chase';
       const px = t.x + t.vx * 8;
@@ -378,10 +470,18 @@ export class BotController {
       const ledgeX = t.x < 0 ? this.ledgeLeft + 18 : this.ledgeRight - 18;
       moveDir = Math.abs(ledgeX - me.x) > 6 ? Math.sign(ledgeX - me.x) : 0;
     } else {
-      const aggressive = chance(this.rng, p.aggression);
-      const desired = aggressive ? 16 : p.spacing;
+      const aggressive = chance(this.rng, p.aggression) && c.preferredRange === 'close';
+      const rangeSpacing = c.preferredRange === 'far' ? 150 : c.preferredRange === 'mid' ? 95 : p.spacing;
+      const desired = aggressive ? 16 : rangeSpacing;
       if (adx > desired + 8) moveDir = toward;
       else if (adx < desired - 14 && !aggressive) moveDir = -toward;
+      // Ranged fighters cornered at close range hop away to reopen space.
+      const hopTo = me.x - toward * 60;
+      const hopSafe = hopTo > this.ledgeLeft + 16 && hopTo < this.ledgeRight - 16;
+      if (c.preferredRange !== 'close' && hopSafe && adx < 36 && me.grounded && chance(this.rng, 0.25 + p.aggression * 0.3)) {
+        this.push(dirBits(-toward) | Btn.Jump, 12);
+        return;
+      }
       jump = dy < -44 && chance(this.rng, 0.4 + p.aggression * 0.4);
       drop = dy > 30 && me.onPlatform;
     }
@@ -432,7 +532,7 @@ export class BotController {
       const tx = t.x + t.vx * lead * 0.8;
       const ty = t.y + (t.grounded ? 0 : t.vy * lead * 0.6);
       const hurt = tc.hurtboxes.map((r) => toWorldRect(r, tx, ty, t.facing));
-      const reach = toWorldRect(this.reach.get(a.id)!, me.x + me.vx * lead * 0.5, me.y, facing);
+      const reach = toWorldRect(reachOf(c, a.id)!, me.x + me.vx * lead * 0.5, me.y, facing);
       if (!hurt.some((h) => rectsOverlap(reach, h))) continue;
 
       // Safety: don't lunge off the main stage.

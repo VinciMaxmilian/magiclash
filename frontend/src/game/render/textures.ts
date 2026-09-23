@@ -1,7 +1,22 @@
 import Phaser from 'phaser';
 import { PixelBuffer } from './pixelBuffer';
 import { INK, PAL, TEAM_RAMPS, TEAM_ORDER, type TeamColor } from './palette';
-import { CELL, drawKnight, knightFrameList } from './knightSprite';
+import { CHARACTERS, CHARACTER_ORDER } from '@magiclash/shared';
+import { CELL, STYLES, drawFighter, framesForCharacter } from './fighterSprite';
+import {
+  arrowFrames,
+  axeFrames,
+  beamFrames,
+  burstRingFrames,
+  crystalFrames,
+  explosionFrames,
+  fireColumnFrames,
+  frostFrames,
+  iceSpikesFrames,
+  orbFrames,
+  shockFrames,
+  sparkBoltFrames,
+} from './projectileSprites';
 import {
   SLASHES,
   dustFrames,
@@ -117,36 +132,55 @@ export const ensurePanel = (scene: Phaser.Scene, w: number, h: number, accent?: 
 
 const STOCK_ICON = ['kkkkkkk', 'kTTuTTk', 'kTTuTTk', 'kTuuuTk', 'kTTuTTk', '.kTTTk.', '..kTk..', '...k...'];
 
+/** Rows to skip above the face when cropping portraits (tall hats). */
+const PORTRAIT_SKIP: Record<string, number> = { fire_mage: 8, ice_mage: 8, lightning_mage: 8, barbarian: 1 };
+
 const registerTeamUi = (scene: Phaser.Scene, team: TeamColor) => {
   const T = TEAM_RAMPS[team];
   const icon = new PixelBuffer(7, 8);
   icon.stamp(0, 0, STOCK_ICON, { k: INK, T: T[2], u: PAL.gold[3] });
   addBuffer(scene, `stock_${team}`, icon);
 
-  const idle = drawKnight({}, team);
-  const portrait = new PixelBuffer(18, 18);
-  for (let y = 0; y < 18; y++) {
-    for (let x = 0; x < 18; x++) {
-      const a = idle.alphaAt(x + 22, y + 17);
-      if (a) portrait.set(x, y, idle.colorAt(x + 22, y + 17));
+  for (const id of CHARACTER_ORDER) {
+    const idle = drawFighter({}, STYLES[id], team);
+    let top = 0;
+    while (top < CELL && ![...Array(CELL).keys()].some((x) => idle.alphaAt(x, top) > 0)) top++;
+    top += PORTRAIT_SKIP[id] ?? 0;
+    const portrait = new PixelBuffer(18, 18);
+    for (let y = 0; y < 18; y++) {
+      for (let x = 0; x < 18; x++) {
+        const a = idle.alphaAt(x + 23, y + top);
+        if (a) portrait.set(x, y, idle.colorAt(x + 23, y + top));
+      }
     }
+    addBuffer(scene, `portrait_${id}_${team}`, portrait);
   }
-  addBuffer(scene, `portrait_${team}`, portrait);
+};
+
+export const fighterTextureKey = (characterId: string, team: TeamColor) => `fighter_${characterId}_${team}`;
+
+/**
+ * Fighter sheets are generated lazily, only for the character/color pairs actually on
+ * screen (6 classes × 4 colors up-front would waste GPU memory).
+ */
+export const ensureFighterTexture = (scene: Phaser.Scene, characterId: string, team: TeamColor): string => {
+  const key = fighterTextureKey(characterId, team);
+  if (scene.textures.exists(key)) return key;
+  const style = STYLES[characterId];
+  const frames = framesForCharacter(style, CHARACTERS[characterId].attacks.map((a) => a.anim));
+  addSheet(
+    scene,
+    key,
+    frames.map((f) => drawFighter(f.pose, style, team)),
+    frames.map((f) => f.name),
+  );
+  return key;
 };
 
 export const registerAllTextures = (scene: Phaser.Scene): void => {
   registerFonts(scene);
 
-  const frames = knightFrameList();
-  for (const team of TEAM_ORDER) {
-    addSheet(
-      scene,
-      `knight_${team}`,
-      frames.map((f) => drawKnight(f.pose, team)),
-      frames.map((f) => f.name),
-    );
-    registerTeamUi(scene, team);
-  }
+  for (const team of TEAM_ORDER) registerTeamUi(scene, team);
 
   for (const [id, def] of Object.entries(SLASHES)) addEffect(scene, `fx_${id}`, slashFrames(def));
   addEffect(scene, 'fx_thrust', streakFrames(false, 40));
@@ -157,6 +191,27 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'fx_dust', dustFrames());
   addEffect(scene, 'fx_ring', ringFrames());
   addEffect(scene, 'fx_flame', flameFrames());
+  addEffect(scene, 'fx_explosion', explosionFrames(40));
+  addEffect(scene, 'fx_explosion_big', explosionFrames(58));
+  addEffect(scene, 'fx_burst', burstRingFrames(56));
+  addEffect(scene, 'fx_shock', shockFrames());
+  addEffect(scene, 'fx_frost', frostFrames());
+
+  // Projectiles (key = proj_<sprite>)
+  addEffect(scene, 'proj_arrow', arrowFrames(false));
+  addEffect(scene, 'proj_arrow_heavy', arrowFrames(true));
+  addEffect(scene, 'proj_axe', axeFrames());
+  addEffect(scene, 'proj_fireball', orbFrames(14, PAL.fire));
+  addEffect(scene, 'proj_great_fireball', orbFrames(20, PAL.fire));
+  addEffect(scene, 'proj_fire_column', fireColumnFrames(24, 72));
+  addEffect(scene, 'proj_ice_shard', crystalFrames(14, 7));
+  addEffect(scene, 'proj_ice_lance', crystalFrames(22, 8));
+  addEffect(scene, 'proj_ice_spikes', iceSpikesFrames(42, 28));
+  addEffect(scene, 'proj_spark_bolt', sparkBoltFrames());
+  addEffect(scene, 'proj_thunder_beam', beamFrames(112, 12, false));
+  addEffect(scene, 'proj_sky_spark', beamFrames(62, 16, true));
+  addEffect(scene, 'proj_ball_lightning', orbFrames(16, PAL.lightning, true));
+  addEffect(scene, 'proj_thunderstrike', beamFrames(130, 20, true));
 
   const px = new PixelBuffer(1, 1);
   px.set(0, 0, PAL.white);

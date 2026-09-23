@@ -13,6 +13,8 @@ export const KNIGHT: CharacterDefinition = {
   class: 'knight',
   description: 'Armadura pesada e espada longa. Domina o chão a curta e média distância.',
 
+  preferredRange: 'close',
+
   weight: 1.12,
   hitstunMultiplier: 0.95,
 
