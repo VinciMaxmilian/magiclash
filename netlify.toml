@@ -1,0 +1,33 @@
+# Frontend (static) — Netlify. Backend API lives on Vercel, game server on Fly.io (docs/DEPLOY.md).
+[build]
+  base = "."
+  command = "npm ci && npm test && npm run build"
+  publish = "frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Explicit: dev tools are also gated on the Vite mode, but never build prod with NODE_ENV=development.
+  NODE_ENV = "production"
+  NPM_CONFIG_PRODUCTION = "false"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # connect-src: add the Vercel API, Supabase and game-server origins when online features ship.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.vercel.app wss://*.fly.dev; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), gamepad=(self)"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Cross-Origin-Opener-Policy = "same-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

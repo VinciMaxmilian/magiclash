@@ -49,3 +49,29 @@ it.skipIf(!DIR)('knight detail', () => {
   });
   save('knight_detail.png', sheet, 6);
 });
+
+it.skipIf(!DIR)('castle courtyard composed view', async () => {
+  const { buildCastleCourtyardArt, parallaxPosition, REF_CENTER } = await import('../src/game/maps/castleCourtyardArt');
+  const art = buildCastleCourtyardArt();
+  const view = new PixelBuffer(640, 360);
+  const scrollX = REF_CENTER.x - 320;
+  const scrollY = REF_CENTER.y - 180;
+  const [sky, mountains, castle, wall, front] = art.parallax;
+  for (const l of [sky, mountains, castle, wall]) {
+    const p = parallaxPosition(l);
+    view.blit(l.buf, Math.round(p.x - scrollX * l.sf), Math.round(p.y - scrollY * l.sf));
+  }
+  view.blit(art.world.buf, art.world.x - scrollX, art.world.y - scrollY);
+  const k1 = drawKnight({}, 'blue');
+  view.blit(k1, -96 - 32 - scrollX, 0 - 56 - scrollY);
+  const k2 = drawKnight({ fArm: [0, 1], sword: 5, lean: 2, fFoot: [6, -2] }, 'red');
+  // mirror for facing left
+  const k2m = new PixelBuffer(64, 64);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (k2.alphaAt(x, y)) k2m.set(63 - x, y, k2.colorAt(x, y));
+  view.blit(k2m, 96 - 31 - scrollX, 0 - 56 - scrollY);
+  const k3 = drawKnight({ hip: [0, -14], fFoot: [3, -6], bFoot: [-4, -3], fArm: [10, 0.8], bArm: [-150, 0.7], sword: -70 }, 'blue');
+  view.blit(k3, 92 - 32 - scrollX, -76 - 56 - scrollY);
+  const pf = parallaxPosition(front);
+  view.blit(front.buf, Math.round(pf.x - scrollX * front.sf), Math.round(pf.y - scrollY * front.sf));
+  save('castle_courtyard.png', view, 2);
+});

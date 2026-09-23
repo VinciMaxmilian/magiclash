@@ -65,6 +65,83 @@ export interface AttackMovement {
   mode?: 'set' | 'add';
 }
 
+export interface StatusEffect {
+  kind: 'slow';
+  ticks: number;
+  /** Movement speed multiplier while active (0.6 = 40% slower). */
+  factor: number;
+}
+
+export interface ExplosionDefinition {
+  w: number;
+  h: number;
+  damage: number;
+  knockback: KnockbackDefinition;
+  /** Ticks the blast stays active. */
+  ticks: number;
+}
+
+/**
+ * Projectiles are simulation entities with their own hitbox, trajectory and lifetime.
+ * Angles use the knockback convention: 0 = forward, 90 = up.
+ */
+export interface ProjectileDefinition {
+  id: string;
+  /** Hitbox size, centered on the projectile position. */
+  w: number;
+  h: number;
+  speed: number;
+  angle: number;
+  gravity: number;
+  /** Per-tick velocity multiplier. Default 1. */
+  drag?: number;
+  lifetime: number;
+  damage: number;
+  knockback: KnockbackDefinition;
+  /** Distinct targets it can hit before ending. Default 1. */
+  pierce?: number;
+  /** Lingering hazards re-hit the same target every N ticks (0/undefined = once). */
+  rehitInterval?: number;
+  /** What happens on touching solid geometry. */
+  onStage: 'destroy' | 'stick' | 'explode' | 'pass';
+  stuckLifetime?: number;
+  explosion?: ExplosionDefinition;
+  explodeOnHit?: boolean;
+  explodeOnExpire?: boolean;
+  status?: StatusEffect;
+  hitstopBonus?: number;
+  hitstunMultiplier?: number;
+  /** The owner's weapon: while alive the owner is disarmed (barbarian axe). */
+  weapon?: boolean;
+  /** Moves with the owner (beams). */
+  attached?: boolean;
+  /** Snaps to the floor below the spawn point (columns, spikes). */
+  grounded?: boolean;
+  /** Renderer key and hit effect (cosmetic). */
+  sprite: string;
+  hitEffect: string;
+  sound?: string;
+}
+
+export interface ProjectileSpawn {
+  id: string;
+  /** Attack frame (0-based) when it spawns. */
+  frame: number;
+  /** Spawn offset from the feet anchor, facing right. */
+  x: number;
+  y: number;
+}
+
+export interface ChargeDefinition {
+  /** Attack frame that is held while the attack button stays down. */
+  frame: number;
+  maxTicks: number;
+  /** Multipliers at full charge (linear from 1). */
+  damage: number;
+  knockback: number;
+  speed?: number;
+}
+
 export interface AttackDefinition {
   id: string;
   name: string;
@@ -97,6 +174,14 @@ export interface AttackDefinition {
   chain?: { next: string; from: number; to: number };
   /** Extra hitstop ticks on hit (heavy impacts). */
   hitstopBonus?: number;
+  /** Multiplier on the hitstun this attack causes (lightning keeps targets stunned longer). */
+  hitstunMultiplier?: number;
+  status?: StatusEffect;
+  projectiles?: ProjectileSpawn[];
+  /** Hold the button to charge (archer / mages). */
+  charge?: ChargeDefinition;
+  /** Attack used instead while the fighter's weapon is out (thrown). */
+  unarmed?: string;
   /** Visual effect id (renderer) and sound id (audio). Purely cosmetic. */
   effect: string;
   sound: string;
@@ -157,6 +242,9 @@ export interface CharacterDefinition {
   attacks: AttackDefinition[];
   /** Which attack id each directional input slot triggers. Missing slots fall back (see resolveSlot). */
   moveset: Partial<Record<AttackSlot, string>>;
+  projectiles?: ProjectileDefinition[];
+  /** AI hint: preferred fighting distance. */
+  preferredRange: 'close' | 'mid' | 'far';
 }
 
 export const attackTotalFrames = (a: AttackDefinition): number => a.startup + a.active + a.recovery;
