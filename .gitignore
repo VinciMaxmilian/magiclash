@@ -22,5 +22,3 @@ __pycache__/
 
 # asset pipeline scratch (raw AI generations stay out of the repo until curated)
 assets-raw/
-
-supabase.md
