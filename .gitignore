@@ -20,5 +20,3 @@ __pycache__/
 .vercel/
 .netlify/
 
-# asset pipeline scratch (raw AI generations stay out of the repo until curated)
-assets-raw/
