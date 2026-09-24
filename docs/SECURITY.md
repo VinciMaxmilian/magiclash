@@ -52,7 +52,7 @@ O overlay de debug (hitboxes, estado, FPS, ping) é importado via `import.meta.e
 de produção o módulo nem entra no bundle. No online o overlay mostra o que o cliente *recebe*,
 então não dá vantagem que já não exista.
 
-## 6. Estado atual (Fase 4)
+## 6. Estado atual (Fase 5)
 
 Implementado e testado:
 - Backend: headers, CORS restritivo, limite de corpo (com override só para avatar), rate limit
@@ -66,4 +66,14 @@ Implementado e testado:
   `profiles`, helper de RLS fora do schema exposto, bucket sem upload de cliente (testes reais).
 - Frontend: só chave pública; inputs HTML não recebem atalhos do jogo.
 
-Pendente (Fase 5): join tokens e HMAC do game server, captcha no guest online, rate limit compartilhado.
+- Online: join token de uso único (120 s) com claims validados por regex no GS; `alg` fixo HS256
+  (`none` rejeitado em teste); auth na primeira mensagem (token fora de URLs/logs); allow-list de Origin;
+  limite de conexões por IP, de tamanho e de taxa de mensagens; strikes.
+- Cliente só envia bits de botão; o GS ignora bits fora da máscara e nunca aceita estado do cliente.
+- Resultado só pelo GS, com HMAC + timestamp + anti-replay; `record_match_result` só executável pela
+  service role e valida tudo de novo no banco.
+- Foto no HUD online: o GS só repassa um **caminho** do bucket (regex `uuid/hex32.webp`), a URL é montada
+  pelo cliente com o `VITE_SUPABASE_URL` — nenhuma URL arbitrária vinda da rede é carregada.
+
+Pendente: captcha no visitante online, rate limit compartilhado entre instâncias, `jti` em store
+compartilhado quando houver várias máquinas do GS.

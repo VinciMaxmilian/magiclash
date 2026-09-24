@@ -44,6 +44,7 @@ export class TitleScene extends Phaser.Scene {
     };
     this.items = [
       { label: () => 'JOGAR (SINGLEPLAYER)', confirm: () => this.startMatch() },
+      { label: () => 'JOGAR ONLINE', confirm: () => this.scene.start('Online') },
       {
         label: () => (account.signedIn ? `PERFIL: ${displayName()}` : `CONTA (VISITANTE: ${displayName()})`),
         confirm: () => this.scene.start('Profile'),
@@ -55,7 +56,7 @@ export class TitleScene extends Phaser.Scene {
       { label: () => (this.scale.isFullscreen ? 'SAIR DA TELA CHEIA' : 'TELA CHEIA (F)'), confirm: () => this.scale.toggleFullscreen() },
     ];
 
-    this.add.image(320, 200, ensurePanel(this, 272, 124)).setScrollFactor(0).setDepth(10);
+    this.add.image(320, 206, ensurePanel(this, 272, 138)).setScrollFactor(0).setDepth(10);
     this.texts = this.items.map((it, i) =>
       pixelText(this, 200, 146 + i * 14, it.label(), { depth: 11, color: 0xb7c2d6 }),
     );

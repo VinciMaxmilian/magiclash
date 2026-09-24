@@ -1,10 +1,10 @@
 # CONTINUAR — memória técnica do MagiClash
 
-> Atualize ao fim de cada etapa grande. Última atualização: 2026-09-23 (fim da Fase 4).
+> Atualize ao fim de cada etapa grande. Última atualização: 2026-09-24 (Fase 5 concluída localmente; falta deploy do game server).
 
 ## Estado atual
 
-Fases **0–4 concluídas** e verificadas (testes + navegador real via Chrome headless).
+Fases **0–5 concluídas** e verificadas (testes + navegador real via Chrome headless).
 
 - **Jogo** (`frontend/`, Phaser 3.90): título → seleção (6 classes × 4 cores, 1–3 bots, FFA/2v2,
   3 mapas, vidas) → partida → resultados. Tela cheia (escala FIT 16:9, tecla F). Pausa com
@@ -15,7 +15,13 @@ Fases **0–4 concluídas** e verificadas (testes + navegador real via Chrome he
 - **Backend** (`backend/`, FastAPI): health, perfis (`GET/PATCH /api/profiles/me`,
   `GET /api/profiles/{username}`), upload de avatar validado e re-encodado. Headers, CORS,
   rate limit, limite de corpo, logs com redaction. `python main.py runserver` / `python main.py test`.
-- **Supabase** (projeto `magiclash`, `cvflnhkaelgsdjrgkkfu`, sa-east-1): 2 migrations aplicadas
+- **Online** (`realtime/` + `backend/app/api/online.py`): visitante ou conta; sala privada por código
+  (duelo, FFA até 4, times 2v2) e fila 1v1; lobby (classe/cor/time/pronto); servidor autoritativo 60 Hz,
+  snapshots 30 Hz, predição + reconciliação no cliente, ping na tela; reconexão e forfeit (15 s);
+  resultado assinado (HMAC) gravado por `record_match_result`. Detalhes: docs/NETWORKING.md §5.
+- **Foto de perfil no HUD**: conta com foto enviada aparece no painel da partida (singleplayer e online;
+  online o caminho vem no join token e o GS repassa a todos). Sem foto → retrato da classe.
+- **Supabase** (projeto `magiclash`, `cvflnhkaelgsdjrgkkfu`, sa-east-1): 3 migrations aplicadas + 1 pendente
   (`supabase/migrations/`), RLS deny-by-default verificado por testes de integração reais.
 - **Contas**: login/registro email+senha (Supabase Auth), perfil (nome, favorito, avatar padrão
   ou imagem), visitante com nome temporário.
@@ -25,18 +31,20 @@ Fases **0–4 concluídas** e verificadas (testes + navegador real via Chrome he
 ```powershell
 npm install
 npm run dev                                   # jogo: http://localhost:5173
+npm run realtime                              # game server: ws://localhost:8787/ws
 cd backend; .\.venv\Scripts\python.exe main.py runserver    # API: http://localhost:8000
 ```
-Env: `backend/.env` (segredos, git-ignored) e `frontend/.env.local` (só valores públicos).
+Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRET` igual nos dois) e
+`frontend/.env.local` (só valores públicos). Latência simulada: `SIMULATED_LATENCY_MS=60` no game server.
 
 ## Testes
 
 | Comando | O quê |
 |---|---|
-| `npm test` | 70+ testes vitest: física, combate, exploits, classes, projéteis, bots, contrato dados↔assets |
-| `npm run typecheck` | TS estrito shared + frontend |
-| `cd backend; .\.venv\Scripts\python.exe main.py test` | 52 testes pytest: segurança, perfis (fake), avatar |
-| `SUPABASE_IT=1 … pytest tests/test_supabase_integration.py` | 8 testes de RLS no Supabase real (cria/apaga usuários) |
+| `npm test` | 94 testes vitest: física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
+| `npm run typecheck` | TS estrito shared + frontend + realtime |
+| `cd backend; .\.venv\Scripts\python.exe main.py test` | 88 testes pytest: segurança, perfis (fake), avatar, online (guest, salas, fila, resultado assinado) |
+| `SUPABASE_IT=1 … pytest tests/test_supabase_integration.py` | 10 testes de RLS/funções no Supabase real (cria/apaga usuários) |
 | `STATS_OUT=arquivo npm run sim:balance` | matriz de balanceamento bot×bot |
 | `ART_PREVIEW_DIR=pasta npx vitest run frontend/tests/art.preview.test.ts` | PNGs da arte procedural para revisão |
 
@@ -51,6 +59,9 @@ Env: `backend/.env` (segredos, git-ignored) e `frontend/.env.local` (só valores
    `NODE_ENV=development` global, que vazava ferramentas de debug no build.
 6. Validação de token no backend via `GET /auth/v1/user` (autoritativo, cobre revogação), com cache de 60 s.
 7. Stats/rating só podem ser escritos pelo backend (sem policies de escrita + REVOKE).
+8. Game server Node/TS (`ws`) roda a mesma sim do cliente; cliente só manda bits de botão.
+9. Auth do WS na primeira mensagem (token nunca na URL); join token de uso único, 120 s.
+10. Oponentes online são extrapolados com o último input (não interpolados no passado).
 
 ## Bugs / pendências conhecidas
 
@@ -58,7 +69,13 @@ Env: `backend/.env` (segredos, git-ignored) e `frontend/.env.local` (só valores
   **Rotacionar chaves** antes de produção (foram compartilhadas em chat).
 - Registro pela UI depende da confirmação de email do Supabase (mensagem exibida).
 - Autodestruições dos bots ainda ~0,3/partida em hard; ok para bots, refinar depois.
+- **Migration pendente** `20260924140000_account_deletion.sql`: sem ela, excluir uma conta que já entrou
+  numa partida online falha (`match_entries` check). A aplicação automática foi bloqueada pela permissão;
+  aplicar pelo painel/CLI. Usuário de teste `Foto_8907` (e2e) ficou no banco por isso — apagar depois.
+- Um game server antigo (processo órfão de teste) pode estar ocupando a porta 8787; o servidor agora
+  avisa "porta ocupada" em vez de travar.
 
 ## Próximos passos
 
-Fase 5 — ver [docs/ROADMAP.md](docs/ROADMAP.md).
+Deploy do game server (Fly.io) com confirmação do usuário, depois Fase 6 (Elo, histórico, leaderboard)
+— ver [docs/ROADMAP.md](docs/ROADMAP.md).

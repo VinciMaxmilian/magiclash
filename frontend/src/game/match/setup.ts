@@ -9,6 +9,8 @@ export interface SlotSetup {
   team: number;
   label: string;
   bot: BotDifficulty | null;
+  /** Uploaded profile photo shown in the HUD instead of the class portrait. */
+  avatarUrl?: string | null;
 }
 
 export interface MatchSetup {

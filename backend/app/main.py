@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, profiles
+from app.api import health, internal, leaderboard, online, profiles
 from app.repositories.supabase import SupabaseClient, SupabaseGateway
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
@@ -61,6 +61,9 @@ def create_app(
     install_error_handlers(app)
     app.include_router(health.router, prefix="/api")
     app.include_router(profiles.router, prefix="/api")
+    app.include_router(online.router, prefix="/api")
+    app.include_router(internal.router, prefix="/api")
+    app.include_router(leaderboard.router, prefix="/api")
     return app
 
 

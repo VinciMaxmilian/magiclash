@@ -27,6 +27,8 @@ INFO intencional de `security_events` sem policy. RLS verificado por
 | `match_participants` | match_id, slot, user_id (nullable p/ guest), guest_name, character_id, team, placement, kos, deaths, damage_dealt, rating_before/after | idem `matches` | nenhuma |
 | `rating_history` | id, user_id, match_id, season_id, queue, delta, rating_after, created_at | todos | nenhuma |
 | `matchmaking_tickets` | id, user_id / guest_id, queue, character_id, status, match_id, created_at, expires_at | **só o dono** (usado para Realtime "match found") | nenhuma (backend) |
+| `private_rooms` | code (6 letras), match_id, host, expires_at (2 h) | nenhuma | nenhuma (backend) |
+| `match_entries` | um registro por join token emitido (match, user/guest, display_name, jti). A conta apagada leva junto (`on delete cascade`, migration 20260924140000) | nenhuma | nenhuma (backend) |
 | `security_events` | id, type, severity, user_id, match_id, ip_hash, details jsonb, created_at | **nenhuma** | nenhuma |
 
 Views:
@@ -37,11 +39,12 @@ Views:
 
 ## Funções (SECURITY DEFINER, `search_path` fixo, executáveis só pela service role)
 
-- `record_match_result(match_id, payload jsonb)` (Fase 6): transação única que valida estado da partida,
-  grava participantes, atualiza `player_stats`, `player_ratings`, `rating_history`, muda status para
-  `finished`. Idempotente: segunda chamada para a mesma partida é rejeitada.
+- `record_match_result(...)` (Fase 5): transação única que valida estado da partida, participantes
+  (só quem recebeu join token), coerência (KOs ≤ mortes, duração 600–54 000 ticks), grava participantes,
+  atualiza `player_stats`, muda status para `finished`. Idempotente. Fase 6 adiciona `player_ratings` e
+  `rating_history`.
 - `app_private.is_match_participant(match)`: helper das policies (schema não exposto pela API).
-- `mm_try_match(queue)` (Fase 5): pareia tickets com `FOR UPDATE SKIP LOCKED` (sem corrida entre instâncias
+- `mm_try_match(queue)`: pareia tickets com `FOR UPDATE SKIP LOCKED` (sem corrida entre instâncias
   serverless).
 
 `REVOKE EXECUTE … FROM anon, authenticated` em todas.

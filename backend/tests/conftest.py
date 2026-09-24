@@ -14,6 +14,8 @@ def make_settings(**overrides) -> Settings:
         "allowed_origins": f"{ORIGIN},http://localhost:5173",
         "rate_limit_per_minute": 10_000,
         "max_body_bytes": 1024,
+        "game_server_secret": "test-game-secret-0123456789abcdef",
+        "guest_token_secret": "test-guest-secret-0123456789abcdef",
     }
     base.update(overrides)
     return Settings(_env_file=None, **base)

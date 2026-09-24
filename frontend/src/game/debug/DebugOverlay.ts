@@ -30,7 +30,7 @@ export class DebugOverlay {
     this.text.setVisible(v);
   }
 
-  update(sim: Simulation, fps: number, bots: BotController[], slowmo: boolean): void {
+  update(sim: Simulation, fps: number, bots: BotController[], slowmo: boolean, rtt?: number): void {
     if (!this.visible) return;
     const g = this.gfx;
     g.clear();
@@ -43,7 +43,7 @@ export class DebugOverlay {
     const bz = st.blastZone;
     g.strokeRect(bz.left, bz.top, bz.right - bz.left, bz.bottom - bz.top);
 
-    const lines: string[] = [`FPS ${fps.toFixed(0)}  TICK ${sim.state.tick}  PING --  ${slowmo ? 'SLOW x0.25' : ''}`];
+    const lines: string[] = [`FPS ${fps.toFixed(0)}  TICK ${sim.state.tick}  PING ${rtt === undefined ? '--' : `${Math.round(rtt)}MS`}  ${slowmo ? 'SLOW x0.25' : ''}`];
     for (const f of sim.state.fighters) {
       const c = sim.characterOf(f);
       if (f.state !== 'dead') {

@@ -137,3 +137,60 @@ def test_rpc_helper_not_exposed(cfg):
     with rest(cfg) as anon:
         r = anon.post("/rpc/is_match_participant", json={"m": str(uuid.uuid4())})
         assert r.status_code == 404
+
+
+# ── Phase 5: result recording + matchmaking functions ─────────────────────────
+
+
+def _svc(cfg: Settings) -> httpx.Client:
+    return httpx.Client(base_url=f"{cfg.supabase_url}/rest/v1", headers={**admin_headers(cfg), "Prefer": "return=representation"}, timeout=15)
+
+
+def test_record_match_result_validates_and_is_idempotent(cfg, users):
+    (uid_a, token_a), (uid_b, _) = users
+    with _svc(cfg) as s:
+        m = s.post("/matches", json={"mode": "ffa", "queue": "private", "map_id": "castle_courtyard", "stocks": 3, "max_players": 2}).json()[0]
+        for uid in (uid_a, uid_b):
+            s.post("/match_entries", json={"match_id": m["id"], "user_id": uid, "display_name": "it_player", "jti": uuid.uuid4().hex})
+        part = lambda uid, slot, team, kos, deaths: {"slot": slot, "user_id": uid, "guest_id": None, "name": "it_player",
+                                                     "character_id": "knight", "team": team, "placement": slot + 1,
+                                                     "kos": kos, "deaths": deaths, "damage_dealt": 100}
+        args = {"p_match": m["id"], "p_duration_ticks": 3000, "p_winner_team": 0,
+                "p_participants": [part(uid_a, 0, 0, 3, 1), part(uid_b, 1, 1, 1, 3)]}
+
+        # forged: more KOs than deaths, and a stranger in the report
+        bad = {**args, "p_participants": [part(uid_a, 0, 0, 9, 1), part(uid_b, 1, 1, 1, 3)]}
+        assert s.post("/rpc/record_match_result", json=bad).status_code >= 400
+        stranger = {**args, "p_participants": [part(uid_a, 0, 0, 1, 1), part(str(uuid.uuid4()), 1, 1, 1, 3)]}
+        assert s.post("/rpc/record_match_result", json=stranger).status_code >= 400
+
+        ok = s.post("/rpc/record_match_result", json=args)
+        assert ok.status_code in (200, 204), ok.text
+        again = s.post("/rpc/record_match_result", json=args)
+        assert again.status_code >= 400 and "already_recorded" in again.text
+
+        stats = s.get("/player_stats", params={"user_id": f"eq.{uid_a}"}).json()[0]
+        assert stats["matches"] == 1 and stats["wins"] == 1 and stats["kos"] == 3
+        stats_b = s.get("/player_stats", params={"user_id": f"eq.{uid_b}"}).json()[0]
+        assert stats_b["losses"] == 1
+        assert s.get("/matches", params={"id": f"eq.{m['id']}"}).json()[0]["status"] == "finished"
+        s.delete("/matches", params={"id": f"eq.{m['id']}"})
+
+    # clients can't call either function
+    with rest(cfg, token_a) as c:
+        assert c.post("/rpc/record_match_result", json=args).status_code in (401, 403, 404)
+        assert c.post("/rpc/mm_try_match", json={"p_queue": "1v1", "p_needed": 2, "p_map": "x"}).status_code in (401, 403, 404)
+
+
+def test_mm_try_match_pairs_oldest_tickets(cfg, users):
+    (uid_a, _), (uid_b, _) = users
+    with _svc(cfg) as s:
+        s.patch("/matchmaking_tickets", params={"status": "eq.searching"}, json={"status": "cancelled"})
+        for uid in (uid_a, uid_b):
+            s.post("/matchmaking_tickets", json={"user_id": uid, "queue": "1v1", "character_id": "any"})
+        mid = s.post("/rpc/mm_try_match", json={"p_queue": "1v1", "p_needed": 2, "p_map": "castle_courtyard"}).json()
+        assert mid
+        tickets = s.get("/matchmaking_tickets", params={"match_id": f"eq.{mid}"}).json()
+        assert len(tickets) == 2 and all(t["status"] == "matched" for t in tickets)
+        assert s.post("/rpc/mm_try_match", json={"p_queue": "1v1", "p_needed": 2, "p_map": "x"}).json() is None
+        s.delete("/matches", params={"id": f"eq.{mid}"})

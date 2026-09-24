@@ -15,3 +15,5 @@ export * from './sim/simulation';
 export * from './ai/profiles';
 export * from './ai/bot';
 export * from './data';
+export * from './net/protocol';
+export * from './net/predictor';

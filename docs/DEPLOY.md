@@ -5,7 +5,7 @@
 | Frontend | Netlify | `netlify.toml` (raiz) |
 | API | Vercel (Python) | `backend/vercel.json`, `backend/api/index.py`, `backend/requirements.txt` |
 | Banco/Auth/Storage | Supabase | `supabase/migrations/*.sql` |
-| Game server realtime | Fly.io (Fase 5) | `realtime/` |
+| Game server realtime | Fly.io (a configurar) | `realtime/` (`npm run build -w @magiclash/realtime` → `dist/index.js`) |
 
 ## Frontend (Netlify)
 
@@ -21,9 +21,16 @@
 
 - Root directory do projeto na Vercel: `backend/`. Runtime Python (3.12+).
 - Variáveis (Settings → Environment Variables): `ENV=production`, `ALLOWED_ORIGINS=https://<site>.netlify.app`,
-  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`,
-  `GAME_SERVER_SECRET`.
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GAME_SERVER_SECRET`,
+  `GUEST_TOKEN_SECRET`, `REALTIME_URL=wss://<app>.fly.dev/ws`.
 - `/api/docs` e `/api/openapi.json` ficam desligados quando `ENV=production`.
+
+## Game server (Fly.io)
+
+- Variáveis: `NODE_ENV=production`, `GAME_SERVER_SECRET` (igual ao da API, ≥ 32 chars),
+  `API_URL=https://<api>.vercel.app`, `ALLOWED_ORIGINS=https://<site>.netlify.app`, `PORT=8787`.
+- `SIMULATED_LATENCY_MS` é ignorado em produção.
+- Uma máquina basta no início (salas e `jti` ficam em memória).
 
 ## Local
 
@@ -33,10 +40,12 @@ npm run dev                      # jogo em http://localhost:5173
 npm test                         # testes da simulação/front (vitest)
 npm run build                    # build de produção em frontend/dist
 
+npm run realtime                 # game server em ws://localhost:8787/ws (lê realtime/.env)
+
 cd backend
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+.\.venv\Scripts\python.exe main.py test
+.\.venv\Scripts\python.exe main.py runserver     # API em http://localhost:8000
 ```
 
 Atenção: esta máquina tem `NODE_ENV=development` definido como variável de usuário. Isso não afeta

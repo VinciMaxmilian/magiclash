@@ -88,3 +88,16 @@ async def current_user(request: Request) -> AuthUser:
     user = AuthUser(id=str(data["id"]), email=data.get("email"), is_anonymous=bool(data.get("is_anonymous")))
     _cache.put(key, user)
     return user
+
+
+async def optional_user(request: Request) -> AuthUser | None:
+    """For public endpoints that personalise the answer when a valid account token is present.
+    A missing or invalid token just means "anonymous" (never an error)."""
+    if not request.headers.get("authorization"):
+        return None
+    try:
+        return await current_user(request)
+    except HTTPException as e:
+        if e.status_code == 401:
+            return None
+        raise

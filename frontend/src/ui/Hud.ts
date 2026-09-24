@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TICK_RATE, type FighterState, type MatchState } from '@magiclash/shared';
 import { damageColor, type TeamColor } from '../game/render/palette';
+import { loadAvatarTexture } from '../game/render/avatars';
 import { ensurePanel } from '../game/render/textures';
 import { pixelText, setPixelText } from './text';
 
@@ -30,7 +31,7 @@ export class Hud {
   constructor(
     private readonly scene: Phaser.Scene,
     fighters: FighterState[],
-    entries: { portrait: string; label: string; color: TeamColor }[],
+    entries: { portrait: string; label: string; color: TeamColor; avatarUrl?: string | null }[],
   ) {
     const n = fighters.length;
     const gap = 12;
@@ -42,7 +43,15 @@ export class Hud {
       const root = scene.add.container(x, y).setScrollFactor(0).setDepth(DEPTH);
       root.add(scene.add.image(0, 0, panelKey).setOrigin(0, 0));
       root.add(scene.add.image(4, 4, ensurePanel(scene, 24, 24, 0xd9a24e)).setOrigin(0, 0));
-      root.add(scene.add.image(7, 7, entries[i].portrait).setOrigin(0, 0));
+      const portrait = scene.add.image(7, 7, entries[i].portrait).setOrigin(0, 0);
+      root.add(portrait);
+      const url = entries[i].avatarUrl;
+      if (url) {
+        // The class portrait stays until the photo arrives (or for good, if it fails to load).
+        void loadAvatarTexture(scene, url, 18).then((key) => {
+          if (key && portrait.active) portrait.setTexture(key);
+        });
+      }
       root.add(pixelText(scene, 32, 4, entries[i].label, { outline: false, color: 0xb7c2d6, fixed: false }));
       const damage = pixelText(scene, PANEL_W - 6, 12, '0%', { scale: 2, fixed: false, align: 'right' });
       root.add(damage);

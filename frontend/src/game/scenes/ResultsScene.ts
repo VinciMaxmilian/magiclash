@@ -12,11 +12,15 @@ import type { ResultsData } from './MatchScene';
  * Local results. Offline matches never touch the backend/leaderboard: in online play the
  * result will be produced and signed by the realtime server, never by this screen.
  */
+const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `${n}` : '+0');
+
 export class ResultsScene extends Phaser.Scene {
   private cursor = 0;
   private options: Phaser.GameObjects.BitmapText[] = [];
   private results!: ResultsData;
-  private readonly labels = ['REVANCHE', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
+  private get labels(): string[] {
+    return this.results?.online ? ['JOGAR ONLINE DE NOVO', 'MENU PRINCIPAL'] : ['REVANCHE', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
+  }
 
   constructor() {
     super('Results');
@@ -32,14 +36,14 @@ export class ResultsScene extends Phaser.Scene {
     this.add.rectangle(320, 180, 640, 360, PAL.ink, 0.5).setScrollFactor(0);
 
     const human = data.setup.slots.findIndex((s) => s.bot === null);
-    const humanTeam = human >= 0 ? data.setup.slots[human].team : -99;
+    const humanTeam = data.online ? data.online.youTeam : human >= 0 ? data.setup.slots[human].team : -99;
     const draw = data.winnerTeam < 0;
     const won = data.winnerTeam === humanTeam;
     const title = draw ? 'EMPATE' : human < 0 ? 'FIM DE JOGO' : won ? 'VITÓRIA!' : 'DERROTA';
     pixelText(this, 321, 23, title, { scale: 4, align: 'center', color: PAL.ink, depth: 5 });
     pixelText(this, 320, 20, title, { scale: 4, align: 'center', color: won ? PAL.gold[3] : draw ? PAL.steel[3] : PAL.fire[1], depth: 6 });
     const secs = Math.round(data.durationTicks / TICK_RATE);
-    const mode = data.setup.mode === 'teams' ? 'TIMES 2V2' : 'TODOS CONTRA TODOS';
+    const mode = data.setup.mode === 'teams' ? 'TIMES 2V2' : data.fighters.length === 2 ? 'DUELO 1V1' : 'TODOS CONTRA TODOS';
     pixelText(this, 320, 70, `${getStage(data.setup.stageId).name} - ${mode} - ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, {
       align: 'center',
       color: PAL.sky[5],
@@ -55,6 +59,10 @@ export class ResultsScene extends Phaser.Scene {
       ['GOLPES', (f) => String(f.stats.hitsLanded)],
       ['VIDAS', (f) => String(f.stocks)],
     ];
+    const rated = data.fighters.some((f) => f.rating);
+    if (rated) {
+      rows.push(['RATING', (f) => (f.rating ? `${f.rating.after} ${signed(f.rating.after - f.rating.before)}` : '-')]);
+    }
     const n = data.fighters.length;
     const colW = n > 2 ? 64 : 84;
     const firstCol = (n > 2 ? 262 : 290) + colW / 2;
@@ -76,7 +84,16 @@ export class ResultsScene extends Phaser.Scene {
     });
 
     this.options = this.labels.map((label, i) => pixelText(this, 320, 262 + i * 14, label, { align: 'center', depth: 6 }));
-    pixelText(this, 320, 340, 'PARTIDAS OFFLINE NÃO CONTAM PARA O RANKING', {
+    const footer = !data.online
+      ? 'PARTIDAS OFFLINE NÃO CONTAM PARA O RANKING'
+      : !data.online.recorded
+        ? 'RESULTADO NÃO REGISTRADO (SERVIDOR INDISPONÍVEL)'
+        : rated
+          ? 'PARTIDA RANQUEADA - RATING ATUALIZADO PELO SERVIDOR'
+          : data.online.ranked
+            ? 'RESULTADO REGISTRADO - RATING SÓ ENTRE CONTAS'
+            : 'RESULTADO VALIDADO E REGISTRADO PELO SERVIDOR';
+    pixelText(this, 320, 340, footer, {
       align: 'center', outline: false, color: PAL.sky[3], depth: 6,
     });
     this.refresh();
@@ -100,7 +117,8 @@ export class ResultsScene extends Phaser.Scene {
     }
     if (input.wasPressed('confirm')) {
       audio.play('ui_confirm', 'ui');
-      if (this.cursor === 0) this.scene.start('Match', this.results.setup);
+      if (this.results.online) this.scene.start(this.cursor === 0 ? 'Online' : 'Title');
+      else if (this.cursor === 0) this.scene.start('Match', this.results.setup);
       else if (this.cursor === 1) this.scene.start('Select', { setup: this.results.setup });
       else this.scene.start('Title');
     } else if (input.wasPressed('back')) {

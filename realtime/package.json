@@ -1,0 +1,23 @@
+{
+  "name": "@magiclash/realtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Authoritative realtime game server: runs @magiclash/shared at 60 Hz over WebSocket.",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "node dist/server.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/server.js --external:bufferutil --external:utf-8-validate --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\""
+  },
+  "dependencies": {
+    "@magiclash/shared": "0.1.0",
+    "jose": "^6.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.0"
+  }
+}

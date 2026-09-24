@@ -66,6 +66,13 @@ export const ERROR_TEXT: Record<string, string> = {
   bad_dimensions: 'IMAGEM ENTRE 16 E 1024 PX',
   unauthorized: 'SESSÃO EXPIRADA. ENTRE NOVAMENTE',
   offline: 'SERVIDOR INDISPONÍVEL',
+  room_not_found: 'SALA NÃO ENCONTRADA',
+  room_full: 'SALA CHEIA',
+  room_closed: 'PARTIDA JÁ COMEÇOU OU TERMINOU',
+  match_in_progress: 'PARTIDA JÁ COMEÇOU',
+  outdated_client: 'ATUALIZE A PÁGINA (VERSÃO NOVA)',
+  realtime_offline: 'SERVIDOR DE PARTIDAS INDISPONÍVEL',
+  connection_lost: 'CONEXÃO PERDIDA',
   not_configured: 'CONTAS INDISPONÍVEIS NESTE BUILD',
 };
 
@@ -86,6 +93,11 @@ class AccountService {
 
   get signedIn(): boolean {
     return this.session !== null;
+  }
+
+  /** Current Supabase access token (for our backend's Authorization header). */
+  get accessToken(): string | null {
+    return this.session?.access_token ?? null;
   }
 
   async init(): Promise<void> {

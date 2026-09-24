@@ -29,6 +29,9 @@ class SupabaseGateway(Protocol):
     async def update(self, table: str, filters: dict[str, str], body: dict[str, Any]) -> list[dict[str, Any]]: ...
     async def upload(self, bucket: str, path: str, data: bytes, content_type: str) -> None: ...
     async def remove(self, bucket: str, paths: list[str]) -> None: ...
+    async def insert(self, table: str, rows: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]: ...
+    async def delete(self, table: str, filters: dict[str, str]) -> None: ...
+    async def rpc(self, fn: str, args: dict[str, Any]) -> Any: ...
 
 
 class SupabaseClient:
@@ -88,6 +91,24 @@ class SupabaseClient:
         )
         self._raise(r)
         return r.json()
+
+    async def insert(self, table: str, rows: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]:
+        r = await self._http.post(
+            f"{self.url}/rest/v1/{table}",
+            json=rows,
+            headers=self._service_headers({"Prefer": "return=representation"}),
+        )
+        self._raise(r)
+        return r.json()
+
+    async def delete(self, table: str, filters: dict[str, str]) -> None:
+        r = await self._http.delete(f"{self.url}/rest/v1/{table}", params=filters, headers=self._service_headers())
+        self._raise(r)
+
+    async def rpc(self, fn: str, args: dict[str, Any]) -> Any:
+        r = await self._http.post(f"{self.url}/rest/v1/rpc/{fn}", json=args, headers=self._service_headers())
+        self._raise(r)
+        return r.json() if r.content else None
 
     async def upload(self, bucket: str, path: str, data: bytes, content_type: str) -> None:
         r = await self._http.post(

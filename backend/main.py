@@ -13,8 +13,30 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def port_available(host: str, port: int) -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+        except OSError:
+            return False
+    return True
+
+
 def runserver(args: argparse.Namespace) -> None:
     import uvicorn
+
+    if not port_available(args.host, args.port):
+        # On Windows a busy (or reserved) port surfaces as WinError 10013/10048.
+        print(
+            f"\nA porta {args.port} em {args.host} já está em uso ou reservada pelo sistema.\n"
+            f"  - Feche o outro servidor (outro terminal rodando runserver?), ou\n"
+            f"  - use outra porta:  python main.py runserver --port {args.port + 1}\n"
+            f"  - para ver quem usa: Get-NetTCPConnection -LocalPort {args.port} (PowerShell)\n",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     os.chdir(HERE)  # so `.env` and the `app` package resolve regardless of the caller's cwd
     uvicorn.run(

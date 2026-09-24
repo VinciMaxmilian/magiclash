@@ -2,14 +2,18 @@ import Phaser from 'phaser';
 import {
   BotController,
   COMBAT,
+  Predictor,
   Simulation,
   TICK_RATE,
   TICK_SECONDS,
   getCharacter,
   type AttackDefinition,
   type FighterState,
+  type ServerMsg,
   type SimEvent,
 } from '@magiclash/shared';
+import type { NetClient } from '../net/NetClient';
+import type { JoinInfo } from '../../services/online';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { FighterView } from '../render/FighterView';
@@ -18,6 +22,7 @@ import { EffectManager } from '../effects/EffectManager';
 import { SLASHES } from '../render/effectSprites';
 import { PAL, TEAM_RAMPS, type TeamColor } from '../render/palette';
 import { ensurePanel } from '../render/textures';
+import { publicAvatarUrl } from '../render/avatars';
 import { Hud } from '../../ui/Hud';
 import { pixelText, setPixelText } from '../../ui/text';
 import type { DebugOverlay } from '../debug/DebugOverlay';
@@ -28,7 +33,24 @@ export interface ResultsData {
   setup: MatchSetup;
   winnerTeam: number;
   durationTicks: number;
-  fighters: { label: string; characterId: string; color: TeamColor; team: number; stats: FighterState['stats']; stocks: number }[];
+  fighters: {
+    label: string;
+    characterId: string;
+    color: TeamColor;
+    team: number;
+    stats: FighterState['stats'];
+    stocks: number;
+    /** Rated online matches only (computed by the database). */
+    rating?: { before: number; after: number };
+  }[];
+  /** Present for online matches: whether the server recorded the result. */
+  online?: { recorded: boolean; ranked: boolean; youTeam: number };
+}
+
+interface NetSession {
+  client: NetClient;
+  start: Extract<ServerMsg, { t: 'start' }>;
+  join: JoinInfo;
 }
 
 type Element = 'fire' | 'ice' | 'lightning' | 'steel';
@@ -67,8 +89,8 @@ export class MatchScene extends Phaser.Scene {
   private hud!: Hud;
   private debug?: DebugOverlay;
   private indicators: Indicator[] = [];
-  /** Attack instance whose swing effect was already shown, per fighter. */
-  private swingShown: (FighterState['attack'] | undefined)[] = [];
+  /** Swing effect already shown, per fighter (attack id + approximate start tick survives re-simulation). */
+  private swingShown: ({ id: string; start: number } | undefined)[] = [];
   private pauseMenu!: Phaser.GameObjects.Container;
   private pauseItems: Phaser.GameObjects.BitmapText[] = [];
   private pauseCursor = 0;
@@ -83,27 +105,63 @@ export class MatchScene extends Phaser.Scene {
   private camX = 0;
   private camY = -60;
   private fps = 60;
+  /** Online: the server is authoritative; this scene only sends inputs and renders snapshots. */
+  private net: NetSession | null = null;
+  private netOff: (() => void)[] = [];
+  private predictor: Predictor | null = null;
+  /** Visual smoothing of prediction corrections (decays to zero). */
+  private corr: { x: number; y: number }[] = [];
+  private inputAcc = 0;
+  private pingText: Phaser.GameObjects.BitmapText | null = null;
 
   constructor() {
     super('Match');
   }
 
-  create(data: Partial<MatchSetup> & { difficulty?: MatchSetup['slots'][number]['bot'] }): void {
+  create(data: Partial<MatchSetup> & { difficulty?: MatchSetup['slots'][number]['bot']; net?: NetSession }): void {
     const s = svc();
     s.input.flush();
-    this.setup = data.slots ? (data as MatchSetup) : defaultSetup(data.difficulty ?? s.settings.difficulty);
+    this.net = data.net ?? null;
+    this.netOff = [];
+    this.inputAcc = 0;
+    this.pingText = null;
+    this.predictor = null;
+    this.corr = [];
     const seed = Math.floor(Math.random() * 0x7fffffff) | 0;
 
-    this.sim = new Simulation({
-      stageId: this.setup.stageId,
-      fighters: this.setup.slots.map((sl) => ({ characterId: sl.characterId, team: sl.team, name: sl.label })),
-      stocks: this.setup.stocks,
-      timeLimit: this.setup.timeLimit,
-      seed,
-      countdownTicks: 3 * TICK_RATE,
-    });
-    this.human = this.setup.slots.findIndex((sl) => sl.bot === null);
-    this.bots = this.setup.slots.flatMap((sl, i) => (sl.bot ? [new BotController(this.sim, i, sl.bot, seed + i * 17)] : []));
+    if (this.net) {
+      const { start, join } = this.net;
+      this.setup = {
+        stageId: start.config.stageId,
+        stocks: start.config.stocks,
+        timeLimit: start.config.timeLimit,
+        mode: join.mode === 'teams' ? 'teams' : 'ffa',
+        // Remote players are "not me" (bot field only marks who is human locally; no bot runs online).
+        slots: start.slots.map((sl, i) => ({
+          characterId: sl.character,
+          color: sl.color,
+          team: sl.team,
+          label: sl.name,
+          bot: i === start.you ? null : 'medium',
+          avatarUrl: sl.avatar ? publicAvatarUrl(sl.avatar) : null,
+        })),
+      };
+      this.sim = new Simulation(start.config);
+      this.human = start.you;
+      this.bots = [];
+    } else {
+      this.setup = data.slots ? (data as MatchSetup) : defaultSetup(data.difficulty ?? s.settings.difficulty);
+      this.sim = new Simulation({
+        stageId: this.setup.stageId,
+        fighters: this.setup.slots.map((sl) => ({ characterId: sl.characterId, team: sl.team, name: sl.label })),
+        stocks: this.setup.stocks,
+        timeLimit: this.setup.timeLimit,
+        seed,
+        countdownTicks: 3 * TICK_RATE,
+      });
+      this.human = this.setup.slots.findIndex((sl) => sl.bot === null);
+      this.bots = this.setup.slots.flatMap((sl, i) => (sl.bot ? [new BotController(this.sim, i, sl.bot, seed + i * 17)] : []));
+    }
 
     this.acc = 0;
     this.swingShown = [];
@@ -124,8 +182,9 @@ export class MatchScene extends Phaser.Scene {
       this.sim.state.fighters,
       this.setup.slots.map((sl) => ({
         portrait: `portrait_${sl.characterId}_${sl.color}`,
-        label: `${sl.label} ${getCharacter(sl.characterId).name}`,
+        label: `${sl.label} ${getCharacter(sl.characterId).name}`.length > 15 ? sl.label.slice(0, 15) : `${sl.label} ${getCharacter(sl.characterId).name}`,
         color: sl.color,
+        avatarUrl: sl.avatarUrl,
       })),
     );
     this.createIndicators();
@@ -144,8 +203,12 @@ export class MatchScene extends Phaser.Scene {
       });
     }
 
+    if (this.net) this.setupNet(this.net);
+
     s.audio.startAmbient();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.netOff.forEach((f) => f());
+      this.netOff = [];
       s.audio.stopAmbient();
       this.projectiles.clear();
       this.debug = undefined;
@@ -172,6 +235,10 @@ export class MatchScene extends Phaser.Scene {
     }
     if (this.paused) {
       this.updatePauseMenu();
+      if (!this.net) return; // online never pauses: inputs stop, the match goes on
+    }
+    if (this.net) {
+      this.updateNet(deltaMs);
       return;
     }
 
@@ -197,6 +264,102 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  // ── Online ────────────────────────────────────────────────────────────────
+
+  private setupNet(net: NetSession): void {
+    this.predictor = new Predictor(this.sim, this.human);
+    this.corr = this.sim.state.fighters.map(() => ({ x: 0, y: 0 }));
+    this.pingText = pixelText(this, 634, 6, 'PING --', { align: 'right', depth: 1000 });
+    this.netOff.push(
+      net.client.on('snap', (m) => this.onSnapshot(m)),
+      net.client.on('end', (m) => this.onNetEnd(m)),
+      net.client.onClose(() => {
+        if (this.leaving || !this.scene.isActive()) return;
+        this.leaving = true;
+        this.hud.showBanner('CONEXÃO PERDIDA', PAL.fire[2], 120);
+        this.time.delayedCall(1800, () => this.scene.start('Online', { message: 'CONEXÃO COM O SERVIDOR PERDIDA' }));
+      }),
+    );
+  }
+
+  private updateNet(deltaMs: number): void {
+    const { input } = svc();
+    const dt = Math.min(deltaMs, 100) / 1000;
+    // Inputs at the simulation rate (60/s), each message carrying the last few for loss resilience.
+    this.inputAcc += dt;
+    let steps = 0;
+    while (this.inputAcc >= TICK_SECONDS && steps < MAX_STEPS_PER_FRAME) {
+      const raw = input.gameplayFrame();
+      const frame = this.paused ? 0 : raw;
+      const seq = this.net!.client.sendInput(frame);
+      // Predict locally right away: no round-trip delay on our own fighter.
+      this.prev = this.sim.state.fighters.map((f) => ({ x: f.x, y: f.y }));
+      const predicted = this.predictor!.predict(seq, frame);
+      for (const e of predicted) if (this.isLocalFeedback(e)) this.onEvent(e);
+      this.afterAdvance();
+      this.inputAcc -= TICK_SECONDS;
+      steps++;
+    }
+    if (steps === MAX_STEPS_PER_FRAME) this.inputAcc = 0;
+    const alpha = this.inputAcc / TICK_SECONDS;
+    const dtTicks = Math.min(deltaMs, 100) / (1000 / 60);
+    this.renderTick += dtTicks;
+    this.render(alpha, dtTicks);
+  }
+
+  /** Events we show instantly from our own prediction (and skip when the server echoes them). */
+  private isLocalFeedback(e: SimEvent): boolean {
+    return (e.type === 'jump' || e.type === 'dodge') && e.fighter === this.human;
+  }
+
+  private onSnapshot(m: Extract<ServerMsg, { t: 'snap' }>): void {
+    if (this.leaving || !this.predictor) return;
+    const before = this.sim.state.fighters.map((f) => ({ x: f.x, y: f.y }));
+    this.predictor.reconcile(m.s, m.ack);
+    // Smooth small corrections instead of popping; teleports (respawn, big error) snap.
+    this.sim.state.fighters.forEach((f, i) => {
+      const dx = before[i].x - f.x;
+      const dy = before[i].y - f.y;
+      const c = this.corr[i];
+      if (Math.abs(dx) + Math.abs(dy) > 48) {
+        c.x = 0;
+        c.y = 0;
+      } else {
+        c.x += dx;
+        c.y += dy;
+      }
+      this.prev[i] = { x: f.x, y: f.y };
+    });
+    for (const e of m.ev) if (!this.isLocalFeedback(e)) this.onEvent(e);
+  }
+
+  private onNetEnd(m: Extract<ServerMsg, { t: 'end' }>): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    const net = this.net!;
+    const youTeam = this.sim.state.fighters[this.human]?.team ?? -1;
+    const data: ResultsData = {
+      setup: this.setup,
+      winnerTeam: m.winnerTeam,
+      durationTicks: m.durationTicks,
+      fighters: m.fighters.map((f) => ({
+        label: f.name,
+        characterId: f.character,
+        color: f.color,
+        team: f.team,
+        stats: f.stats,
+        stocks: f.stocks,
+        rating: m.ratings?.find((r) => r.slot === f.slot),
+      })),
+      online: { recorded: m.recorded, ranked: net.client.welcome.ranked, youTeam },
+    };
+    this.time.delayedCall(1500, () => {
+      net.client.close();
+      this.cameras.main.fadeOut(300, 26, 20, 34);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Results', data));
+    });
+  }
+
   private stepSim(): void {
     const { input } = svc();
     const fighters = this.sim.state.fighters;
@@ -206,15 +369,23 @@ export class MatchScene extends Phaser.Scene {
     for (const b of this.bots) inputs[b.index] = b.think(this.sim);
     const events = this.sim.step(inputs);
     for (const e of events) this.onEvent(e);
+    this.afterAdvance();
+  }
 
+  /** Per-tick cosmetic follow-ups (swing effects, charge sparkles, trails). Local and online. */
+  private afterAdvance(): void {
+    const fighters = this.sim.state.fighters;
     const tick = this.sim.state.tick;
     fighters.forEach((f, i) => {
       const atk = this.sim.attackOf(f);
       const el = elementOfEffect(atk?.effect ?? '', f.characterId);
       if (atk && f.attack) {
         // Swing effects + whoosh on the first active frame.
-        if (f.attack.frame >= atk.startup && this.swingShown[i] !== f.attack) {
-          this.swingShown[i] = f.attack;
+        const start = tick - f.attack.frame;
+        const shown = this.swingShown[i];
+        const same = shown && shown.id === atk.id && Math.abs(shown.start - start) <= 12;
+        if (f.attack.frame >= atk.startup && !same) {
+          this.swingShown[i] = { id: atk.id, start };
           this.onActiveStart(i, atk);
         }
         // Charging: particles gathering toward the fighter.
@@ -453,8 +624,16 @@ export class MatchScene extends Phaser.Scene {
     fighters.forEach((f, i) => {
       const p = this.prev[i];
       const jump = Math.abs(f.x - p.x) + Math.abs(f.y - p.y) > 60; // respawn teleport: no lerp
-      const x = jump ? f.x : p.x + (f.x - p.x) * alpha;
-      const y = jump ? f.y : p.y + (f.y - p.y) * alpha;
+      let x = jump ? f.x : p.x + (f.x - p.x) * alpha;
+      let y = jump ? f.y : p.y + (f.y - p.y) * alpha;
+      const c = this.corr[i];
+      if (c) {
+        x += c.x;
+        y += c.y;
+        const k = Math.pow(0.8, dtTicks);
+        c.x *= k;
+        c.y *= k;
+      }
       this.views[i].update(f, x, y, this.sim.attackOf(f), t);
     });
     this.projectiles.update(this.sim, t);
@@ -463,7 +642,12 @@ export class MatchScene extends Phaser.Scene {
     this.updateCamera(dtTicks);
     this.updateIndicators();
     this.hud.update(fighters, this.sim.state.match, dtTicks);
-    this.debug?.update(this.sim, this.fps, this.bots, this.slowmo);
+    this.debug?.update(this.sim, this.fps, this.bots, this.slowmo, this.net?.client.rtt);
+    if (this.pingText && this.net) {
+      const rtt = Math.round(this.net.client.rtt);
+      setPixelText(this.pingText, `PING ${rtt}MS`);
+      this.pingText.setTint(rtt < 80 ? PAL.moss[3] : rtt < 150 ? PAL.gold[3] : PAL.fire[2]);
+    }
   }
 
   private updateCamera(dtTicks: number): void {
@@ -521,7 +705,9 @@ export class MatchScene extends Phaser.Scene {
 
   // ── Pause ───────────────────────────────────────────────────────────────────
 
-  private readonly pauseLabels = ['CONTINUAR', 'REINICIAR', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
+  private get pauseLabels(): string[] {
+    return this.net ? ['CONTINUAR', 'SAIR DA PARTIDA'] : ['CONTINUAR', 'REINICIAR', 'TROCAR PERSONAGEM', 'MENU PRINCIPAL'];
+  }
 
   private createPauseMenu(): void {
     this.pauseMenu = this.add.container(0, 0).setDepth(2000);
@@ -565,7 +751,11 @@ export class MatchScene extends Phaser.Scene {
     if (!input.wasPressed('confirm')) return;
     audio.play('ui_confirm', 'ui');
     if (this.pauseCursor === 0) this.setPaused(false);
-    else if (this.pauseCursor === 1) this.scene.restart(this.setup);
+    else if (this.net) {
+      this.leaving = true;
+      this.net.client.close();
+      this.scene.start('Online', { message: 'VOCÊ SAIU DA PARTIDA' });
+    } else if (this.pauseCursor === 1) this.scene.restart(this.setup);
     else if (this.pauseCursor === 2) this.scene.start('Select', { setup: this.setup });
     else this.scene.start('Title');
   }

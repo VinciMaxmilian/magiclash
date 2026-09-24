@@ -2,11 +2,12 @@
   "name": "magiclash",
   "private": true,
   "version": "0.1.0",
-  "description": "MagiClash — 2D pixel art medieval fantasy platform fighter",
+  "description": "MagiClash \u2014 2D pixel art medieval fantasy platform fighter",
   "type": "module",
   "workspaces": [
     "shared",
-    "frontend"
+    "frontend",
+    "realtime"
   ],
   "scripts": {
     "dev": "npm run dev -w @magiclash/frontend",
@@ -14,8 +15,9 @@
     "preview": "npm run preview -w @magiclash/frontend",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit",
-    "sim:balance": "vitest run shared/tests/balance.report.test.ts"
+    "typecheck": "tsc -p shared --noEmit && tsc -p frontend --noEmit && tsc -p realtime --noEmit",
+    "sim:balance": "vitest run shared/tests/balance.report.test.ts",
+    "realtime": "npm run dev -w @magiclash/realtime"
   },
   "devDependencies": {
     "typescript": "~5.9.0",

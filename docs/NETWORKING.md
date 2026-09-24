@@ -98,7 +98,29 @@ Mesmo assim o GS registra (tabela `security_events`) e ignora:
 
 Sem ban automático durante desenvolvimento.
 
-## 5. O que já está preparado na Fase 1
+## 5. Implementação atual (Fase 5)
+
+O diagrama da seção 2 é o desenho original; o que foi construído difere em alguns pontos:
+
+| Peça | Como está |
+|---|---|
+| Identidade | Conta (token do Supabase) **ou** visitante: `POST /api/auth/guest` devolve token HS256 próprio (12 h, id `g_…`) |
+| Entrar numa partida | `POST /api/rooms` (cria sala, código de 6 letras), `POST /api/rooms/{code}/join`, `POST /api/matchmaking/tickets` + `GET` (polling 1,5 s) + `DELETE` para cancelar |
+| Join token | JWT HS256, **120 s**, `jti` de uso único (gravado em `match_entries` e checado pelo GS). Claims: `sub, kind, name, match, room, mode, stage, stocks, max_players, ranked` e, para contas com foto, `avatar` (caminho no bucket, validado por regex na API e no GS) |
+| Conexão WS | `wss://…/ws` **sem token na URL**. Primeira mensagem: `{t:'auth', token, v}`. Timeout 5 s. Origin obrigatório e em allow-list; até 8 conexões por IP; `maxPayload` 1 KB; permessage-deflate |
+| Lobby | `pick` (classe/cor), `team`, `ready`. Começa quando todos estão prontos (mín. 2) |
+| Inputs | Cliente manda `{t:'in', s:seq, i:[últimos 4 inputs]}` a cada tick (redundância cobre perdas). Servidor aplica 1 por tick em fila (jitter buffer), ignora bits inválidos, marca saltos de `seq` > 5 s |
+| Snapshots | 30 Hz (a cada 2 ticks), estado completo arredondado + `ack` (último `seq` aplicado daquele jogador) |
+| Cliente | `Predictor` (shared): roda a própria sim, guarda inputs não confirmados e, a cada snapshot, adota o estado do servidor e reaplica os pendentes. Oponentes são extrapolados repetindo o último input conhecido. Correção visual suavizada. Ping (RTT) na tela |
+| Abuso | Mensagens inválidas somam *strikes*; 20 → desconecta (4008). Taxa de mensagens limitada |
+| Queda | Reconexão com novo join token pelo mesmo `sub` volta ao mesmo slot; após 15 s desconectado o jogador perde (forfeit) |
+| Resultado | GS → `POST /api/internal/matches/{id}/result` com HMAC-SHA256 de `timestamp.body`, janela de 60 s, anti-replay; retries. API → `record_match_result` (valida participantes contra `match_entries`, KOs ≤ mortes, duração 10 s–15 min, idempotente) |
+
+Teste local com latência: `SIMULATED_LATENCY_MS=60` no game server (só fora de produção; atrasa envio e
+recepção, RTT ≈ 120 ms). A emulação de rede do DevTools **não** atrasa frames de WebSocket.
+Validado com dois navegadores: ping exibido 127–129 ms, partida completa, resultado gravado.
+
+## 6. O que já estava preparado na Fase 1
 
 - Sim determinística, fixed-step 60 Hz, com input por bits (`InputFrame`) → serializável em 1 byte.
 - Bot usa a mesma interface de input que um jogador remoto usaria.

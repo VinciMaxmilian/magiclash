@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = Field(default="", repr=False)
     supabase_jwt_secret: str = Field(default="", repr=False)
     game_server_secret: str = Field(default="", repr=False)
+    guest_token_secret: str = Field(default="", repr=False)
+    # Public WebSocket URL of the realtime game server, handed to clients with join tokens.
+    realtime_url: str = "ws://localhost:8787/ws"
 
     rate_limit_per_minute: int = 120
     max_body_bytes: int = 64 * 1024
