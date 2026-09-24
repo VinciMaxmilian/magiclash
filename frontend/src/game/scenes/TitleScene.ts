@@ -24,6 +24,7 @@ export class TitleScene extends Phaser.Scene {
 
   create(): void {
     const s = svc();
+    s.audio.music('title');
     s.input.flush();
     this.cursor = 0;
     this.t = 0;
@@ -45,6 +46,7 @@ export class TitleScene extends Phaser.Scene {
     this.items = [
       { label: () => 'JOGAR (SINGLEPLAYER)', confirm: () => this.startMatch() },
       { label: () => 'JOGAR ONLINE', confirm: () => this.scene.start('Online') },
+      { label: () => 'RANKING', confirm: () => this.scene.start('Leaderboard') },
       {
         label: () => (account.signedIn ? `PERFIL: ${displayName()}` : `CONTA (VISITANTE: ${displayName()})`),
         confirm: () => this.scene.start('Profile'),

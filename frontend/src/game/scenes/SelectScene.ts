@@ -23,6 +23,9 @@ const STAGE_BLURB: Record<string, string> = {
   castle_courtyard: 'NEUTRO: PLATAFORMAS SIMÉTRICAS',
   enchanted_forest: 'ESTREITO: COMBATE AÉREO',
   frozen_fortress: 'AMPLO E ASSIMÉTRICO',
+  wizard_tower: 'ESTREITO E VERTICAL',
+  ancient_ruins: 'DEGRAU E PAREDE NO MEIO',
+  volcanic_keep: 'PEQUENO E AGRESSIVO',
 };
 
 interface Choice {

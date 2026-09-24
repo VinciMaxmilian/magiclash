@@ -7,24 +7,20 @@
 | 2 | Bárbaro, Arqueiro, Magos (Fogo/Gelo/Raio): projéteis, carga, lentidão, desarme | ✅ |
 | 3 | Singleplayer: seleção de personagem/cor/mapa/modo/bots, 3 mapas, resultados | ✅ |
 | 4 | Contas: Supabase Auth, perfil, avatar (padrão + upload validado), estatísticas (leitura) | ✅ |
-| 5 | Multiplayer: game server autoritativo (Node/TS + ws), salas privadas 1v1/FFA/2v2, matchmaking 1v1, predição + reconciliação, resultado assinado | ✅ (falta deploy Fly.io) |
-| 6 | Leaderboard: rating Elo/Glicko server-side, histórico, temporadas | ⏳ próxima |
-| 7 | Polish: arte final curada, música, VFX, mapas restantes, transições, performance | ⏳ |
+| 5 | Multiplayer: game server autoritativo (Node/TS + ws), salas privadas 1v1/FFA/2v2, matchmaking 1v1, predição + reconciliação, resultado assinado | ✅ |
+| 6 | Leaderboard: Elo server-side (1v1 ranqueado entre contas), histórico, ranking temporada/semana/mês/classe, rating nos resultados | ✅ (migration `20260924150000_ratings.sql` a aplicar) |
+| 7 | Polish: Wizard Tower, Ancient Ruins, Volcanic Keep; música chiptune procedural; controles touch; foto de perfil no HUD | ✅ (arte curada/SFX gravados seguem abertos) |
 
 ## Próximos passos detalhados
 
-**Fase 5 — o que resta**
-- Deploy do game server no Fly.io (região `gru`): Dockerfile + `fly.toml`, `ALLOWED_ORIGINS` com o
-  domínio do Netlify, `API_URL` da Vercel, mesmo `GAME_SERVER_SECRET` da API. Pedir confirmação antes.
-- Aplicar a migration `20260924140000_account_deletion.sql` (exclusão de conta que já jogou online).
+**Pendente para produção**
+- Aplicar `supabase/migrations/20260924150000_ratings.sql` (Elo + funções de leaderboard).
+- Deploy: Netlify + Render (`render.yaml` ou serviços manuais) — docs/DEPLOY.md.
+- Testes E2E de ranking contra o banco real (depois da migration) e teste em celular real.
 
-**Fase 6**: Elo por fila dentro de `record_match_result` (já existe e valida o resultado),
-`rating_history`, tela Leaderboard (global/semanal/mensal/por personagem), temporadas. Avaliar baixar
-a duração mínima aceita (hoje 600 ticks = 10 s; uma vitória legítima de 1 vida levou 648).
-
-**Fase 7**: substituir arte procedural por pixel art curada (pipeline em ASSETS.md, com
-Higgsfield para referências), trilha sonora, SFX gravados, Wizard Tower / Ancient Ruins /
-Volcanic Keep, controles touch (`InputSource` pronto), remapeamento de teclas, Phaser 4 (opcional).
+**Depois**: arte curada substituindo a procedural (pipeline em ASSETS.md), SFX gravados,
+remapeamento de teclas, filas ranqueadas FFA/2v2 (o banco já calcula Elo por pares/time),
+temporadas com reset, Phaser 4 (opcional).
 
 ## Dívidas técnicas conhecidas
 - Rate limit do backend é por instância (memória); trocar por Upstash/Postgres antes de produção.

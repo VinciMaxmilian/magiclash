@@ -40,11 +40,20 @@ describe('asset contract', () => {
     const { buildCastleCourtyardArt } = await import('../src/game/maps/castleCourtyardArt');
     const { buildEnchantedForestArt } = await import('../src/game/maps/enchantedForestArt');
     const { buildFrozenFortressArt } = await import('../src/game/maps/frozenFortressArt');
+    const { buildWizardTowerArt } = await import('../src/game/maps/wizardTowerArt');
+    const { buildAncientRuinsArt } = await import('../src/game/maps/ancientRuinsArt');
+    const { buildVolcanicKeepArt } = await import('../src/game/maps/volcanicKeepArt');
     const builders: Record<string, () => unknown> = {
       castle_courtyard: buildCastleCourtyardArt,
       enchanted_forest: buildEnchantedForestArt,
       frozen_fortress: buildFrozenFortressArt,
+      wizard_tower: buildWizardTowerArt,
+      ancient_ruins: buildAncientRuinsArt,
+      volcanic_keep: buildVolcanicKeepArt,
     };
-    for (const id of Object.keys(STAGES)) expect(builders[id], id).toBeDefined();
+    for (const id of Object.keys(STAGES)) {
+      expect(builders[id], id).toBeDefined();
+      expect(() => builders[id](), id).not.toThrow();
+    }
   });
 });

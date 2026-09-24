@@ -10,7 +10,7 @@ JavaScript modificável, requests forjáveis, DevTools aberto.
 | **Visitante (guest)** | Nenhuma conta. Singleplayer é 100% local. Para online, `POST /auth/guest` (rate-limited por IP, com captcha Turnstile na Fase 5) emite **guest token** JWT assinado pelo backend, 12 h, `role=guest`, nome temporário validado | singleplayer, filas casuais |
 | **Conta** | Supabase Auth email/senha (confirmação de email ligada). Cliente usa só a **anon key** (pública por design). Backend valida o JWT do Supabase (JWKS / assinatura, `aud`, `exp`, `iss`) | tudo + ranking, perfil, histórico |
 | **Game Server** | Segredo compartilhado com o backend (env), usado para assinar join tokens e resultados (HMAC-SHA256 + timestamp + nonce) | reportar resultado |
-| **Backend** | Service role key (env da Vercel). Nunca sai do servidor | escrever dados competitivos |
+| **Backend** | Service role key (env do serviço no Render). Nunca sai do servidor | escrever dados competitivos |
 
 OAuth (Google/Discord) é só habilitar provedores no Supabase Auth: o backend valida JWT do
 Supabase independente do provedor, e `profiles` é criado por trigger em `auth.users`.
@@ -74,6 +74,12 @@ Implementado e testado:
   service role e valida tudo de novo no banco.
 - Foto no HUD online: o GS só repassa um **caminho** do bucket (regex `uuid/hex32.webp`), a URL é montada
   pelo cliente com o `VITE_SUPABASE_URL` — nenhuma URL arbitrária vinda da rede é carregada.
+
+- IP do cliente atrás do proxy: usa-se a entrada de `X-Forwarded-For` **acrescentada pelo proxy
+  confiável** (`TRUSTED_PROXY_HOPS`, Render = 1), nunca a primeira (forjável) — testado na API e no GS.
+- Ranking: rating só muda em partida ranqueada **entre contas** (visitante não tem rating e seria
+  fazenda grátis); dupla com 5+ partidas ranqueadas em 24 h para de trocar pontos (win trading).
+  Elo calculado no banco, dentro de `record_match_result`; cliente nunca envia rating.
 
 Pendente: captcha no visitante online, rate limit compartilhado entre instâncias, `jti` em store
 compartilhado quando houver várias máquinas do GS.

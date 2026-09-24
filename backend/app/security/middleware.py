@@ -22,10 +22,13 @@ SECURITY_HEADERS = {
 
 
 def client_ip(request: Request) -> str:
-    # Vercel sets x-forwarded-for; only the first hop is the client.
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    # Each trusted proxy (Render's load balancer) APPENDS the address it saw. Entries to the left
+    # of those were sent by the client and can be forged, so they are never used for rate limits.
+    settings = getattr(request.app.state, "settings", None)
+    hops = getattr(settings, "trusted_proxy_hops", 1)
+    parts = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+    if hops > 0 and parts:
+        return parts[-hops] if len(parts) >= hops else parts[0]
     return request.client.host if request.client else "unknown"
 
 

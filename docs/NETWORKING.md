@@ -1,23 +1,25 @@
 # MagiClash — Networking e Multiplayer
 
-## 1. Netlify + Vercel + Supabase bastam para realtime de 4 jogadores?
+## 1. O que cada serviço consegue fazer
 
-**Não.** Servem para tudo *em volta* da partida, mas não para a partida em si. Falta um
-**servidor de jogo persistente com WebSocket (ou WebRTC/UDP) que rode o loop autoritativo**.
+Hospedagem estática, funções serverless e o Realtime do Supabase servem para tudo *em volta* da
+partida, mas não para a partida em si. Falta um **servidor de jogo persistente com WebSocket que
+rode o loop autoritativo**. Decisão atual: API **e** game server no **Render** (dois web services,
+`render.yaml`); Vercel e Fly.io foram descartados (Fly.io é pago).
 
 ### Netlify
 Hospedagem estática + functions serverless. Não mantém conexões nem processos longos.
 Serve perfeitamente o bundle do jogo. **Não** serve como servidor de partida.
 
-### Vercel (FastAPI serverless)
+### Funções serverless (ex.: Vercel) — por que não servem para a partida
 - Funções são efêmeras, com duração máxima limitada, escaladas horizontalmente em instâncias
   independentes e **sem memória compartilhada** entre invocações.
 - O runtime Python da Vercel **não aceita upgrade de conexão para WebSocket** como servidor.
 - Um loop de 60 Hz precisa de um processo vivo, com o estado da partida em memória e todos os 4
   jogadores conectados **na mesma instância**. Serverless é o oposto disso.
 
-→ Vercel fica com as **APIs HTTP**: perfis, matchmaking (criação/pareamento de tickets), emissão
-de *join tokens*, validação/gravação de resultados, leaderboard, avatar.
+→ Serverless só serviria para as APIs HTTP. Como o game server já precisa de um host com processo
+persistente, a API FastAPI roda no mesmo provedor (Render), como um processo uvicorn comum.
 
 ### Supabase Realtime
 - Broadcast/Presence são um **relay de mensagens pub/sub**. Não existe código nosso executando
@@ -37,9 +39,9 @@ de matchmaking, presença em lobby, chat de sala. Nunca para o estado de combate
 |---|---|
 | Linguagem | **Node.js + TypeScript**, importando `@magiclash/shared` (mesma simulação do cliente) |
 | Transporte | WebSocket (`ws`) com mensagens binárias. WebRTC DataChannel (unreliable) como evolução |
-| Hospedagem | **Fly.io** (máquinas persistentes, WebSocket nativo, região `gru` São Paulo). Alternativas: Railway, Render, VPS Hetzner |
-| Escala | 1 processo = N salas; 1 sala = 1 partida (2–4 jogadores). Fly Machines por região |
-| Custo inicial | 1 máquina shared-cpu-1x (256–512 MB) aguenta dezenas de salas de 4 jogadores |
+| Hospedagem | **Render** web service Node (WebSocket nativo). Plano free: dorme após ~15 min sem tráfego (1º acesso leva ~1 min); sem região na América do Sul — `virginia` é a mais próxima (RTT ~120–150 ms do Brasil, a predição cobre) |
+| Escala | 1 processo = N salas; 1 sala = 1 partida (2–4 jogadores). Salas e `jti` em memória → 1 instância |
+| Custo inicial | Free (750 h/mês somadas entre os serviços; com sleep sobra). Plano pago evita o sleep |
 
 Por que não Python no game server? Seria preciso reescrever a simulação em Python e mantê-la
 bit-a-bit igual à do cliente para predição/reconciliação funcionar. Com TypeScript nos dois lados
@@ -48,7 +50,7 @@ existe **uma** simulação.
 ## 2. Fluxo de uma partida online
 
 ```
-Cliente ──POST /matchmaking/tickets──► API (Vercel) ──► Postgres (ticket, pareamento atômico
+Cliente ──POST /matchmaking/tickets──► API (Render) ──► Postgres (ticket, pareamento atômico
    │                                                     com SELECT … FOR UPDATE SKIP LOCKED)
    │◄── Supabase Realtime: "ticket matched" (RLS: só o dono vê o próprio ticket)
    │

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     """Runtime configuration, read from environment variables only (never from the client).
 
     Secrets (service role key, JWT secret, game-server secret) live exclusively in the
-    Vercel project environment. `.env` is for local development and is git-ignored.
+    Render service environment. `.env` is for local development and is git-ignored.
     """
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -19,6 +19,8 @@ class Settings(BaseSettings):
 
     # Comma-separated list of exact origins allowed by CORS. Never "*".
     allowed_origins: str = "http://localhost:5173,http://localhost:4173"
+    # Proxies in front of the app that append to X-Forwarded-For (Render: 1). 0 = use the socket address.
+    trusted_proxy_hops: int = 1
 
     supabase_url: str = ""
     supabase_anon_key: str = ""

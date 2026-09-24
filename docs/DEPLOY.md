@@ -3,44 +3,57 @@
 | Parte | Onde | Config |
 |---|---|---|
 | Frontend | Netlify | `netlify.toml` (raiz) |
-| API | Vercel (Python) | `backend/vercel.json`, `backend/api/index.py`, `backend/requirements.txt` |
+| API (FastAPI) | Render — web service Python | `render.yaml` → `magiclash-api` (`backend/`) |
+| Game server realtime | Render — web service Node | `render.yaml` → `magiclash-realtime` (`realtime/`) |
 | Banco/Auth/Storage | Supabase | `supabase/migrations/*.sql` |
-| Game server realtime | Fly.io (a configurar) | `realtime/` (`npm run build -w @magiclash/realtime` → `dist/index.js`) |
+
+## Render (API + game server)
+
+1. Render → **New → Blueprint** → escolher o repositório. O `render.yaml` cria os dois serviços e o
+   grupo `magiclash-shared` com `GAME_SERVER_SECRET` **gerado pelo Render** (igual nos dois).
+   `GUEST_TOKEN_SECRET` também é gerado.
+2. Preencher no painel os valores `sync: false`:
+   - `magiclash-api`: `ALLOWED_ORIGINS=https://<site>.netlify.app`, `SUPABASE_URL`,
+     `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (nunca no frontend),
+     `REALTIME_URL=wss://<host do magiclash-realtime>/ws`.
+   - `magiclash-realtime`: `API_URL=https://<host do magiclash-api>`,
+     `ALLOWED_ORIGINS=https://<site>.netlify.app`.
+3. Health checks: API `GET /api/health`, game server `GET /health`.
+
+Notas do plano free:
+- Os serviços **dormem** após ~15 min sem tráfego; o primeiro acesso leva ~1 min para acordar.
+  Uma partida em andamento mantém o game server acordado (WebSocket ativo).
+- 750 horas/mês de instância free por conta, somadas entre os serviços.
+- Não há região na América do Sul: `virginia` é a mais próxima do Brasil e do Supabase `sa-east-1`.
+- Salas e o registro de `jti` ficam em memória: manter **1 instância** do game server.
+- `TRUSTED_PROXY_HOPS` (padrão 1) diz quantos proxies acrescentam ao `X-Forwarded-For`; o limite
+  por IP usa a entrada do proxy, não a enviada pelo cliente.
+- `SIMULATED_LATENCY_MS` é ignorado em produção. `/api/docs` e `/api/openapi.json` ficam desligados
+  com `ENV=production`.
 
 ## Frontend (Netlify)
 
 - Base: raiz do repo. Build: `npm ci && npm test && npm run build`. Publish: `frontend/dist`.
 - `NODE_ENV=production` fixo no build. As ferramentas de debug dependem do **modo do Vite**
   (`__DEV_TOOLS__`), então nem entram no bundle de produção.
-- Headers de segurança e CSP em `netlify.toml`. Ao ligar features online, restrinja `connect-src`
-  aos domínios reais da API, do Supabase e do game server.
-- Variáveis públicas (quando existirem): `VITE_API_URL`, `VITE_SUPABASE_URL`,
-  `VITE_SUPABASE_ANON_KEY`. **Nunca** a service role.
+- Variáveis públicas: `VITE_API_URL=https://<host do magiclash-api>`, `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_ANON_KEY` (chave publishable/anon). **Nunca** a service role.
+- CSP em `netlify.toml`: `connect-src` libera `*.supabase.co` e `*.onrender.com`; depois do primeiro
+  deploy, trocar pelos hosts exatos.
 
-## API (Vercel)
+## Supabase
 
-- Root directory do projeto na Vercel: `backend/`. Runtime Python (3.12+).
-- Variáveis (Settings → Environment Variables): `ENV=production`, `ALLOWED_ORIGINS=https://<site>.netlify.app`,
-  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GAME_SERVER_SECRET`,
-  `GUEST_TOKEN_SECRET`, `REALTIME_URL=wss://<app>.fly.dev/ws`.
-- `/api/docs` e `/api/openapi.json` ficam desligados quando `ENV=production`.
-
-## Game server (Fly.io)
-
-- Variáveis: `NODE_ENV=production`, `GAME_SERVER_SECRET` (igual ao da API, ≥ 32 chars),
-  `API_URL=https://<api>.vercel.app`, `ALLOWED_ORIGINS=https://<site>.netlify.app`, `PORT=8787`.
-- `SIMULATED_LATENCY_MS` é ignorado em produção.
-- Uma máquina basta no início (salas e `jti` ficam em memória).
+- Migrations em `supabase/migrations/`, aplicadas em ordem. Revisar antes; em produção aplicar
+  primeiro num branch/staging.
 
 ## Local
 
 ```powershell
 npm install
 npm run dev                      # jogo em http://localhost:5173
-npm test                         # testes da simulação/front (vitest)
-npm run build                    # build de produção em frontend/dist
-
 npm run realtime                 # game server em ws://localhost:8787/ws (lê realtime/.env)
+npm test                         # testes vitest (simulação, frontend, game server)
+npm run build                    # build de produção em frontend/dist
 
 cd backend
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
@@ -53,8 +66,8 @@ o jogo (o gate de debug usa o modo do Vite), mas pode afetar outras ferramentas 
 
 ## Checklist antes de cada deploy
 
-- [ ] `npm test`, `npm run typecheck`, `pytest` verdes
+- [ ] `npm test`, `npm run typecheck`, `main.py test` verdes
 - [ ] `npm run build` sem chunk de debug (`frontend/dist/assets` sem `DebugOverlay*`)
 - [ ] Nenhum segredo em `frontend/` (`grep -ri "service_role" frontend/src` vazio)
-- [ ] Migrations novas revisadas, aplicadas primeiro em branch/staging do Supabase
+- [ ] Migrations novas revisadas e aplicadas antes do deploy da API que depende delas
 - [ ] `CONTINUAR.md` atualizado

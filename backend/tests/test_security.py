@@ -120,6 +120,17 @@ def test_rate_limit_returns_429(make_client):
     assert 429 in codes[3:]
 
 
+def test_rate_limit_ignores_forged_forwarded_for(make_client):
+    # Behind Render the proxy appends the real address; a client-chosen first entry must not
+    # buy a fresh bucket.
+    c = make_client(limiter=InMemoryRateLimiter(per_minute=60, burst=3))
+    codes = [
+        c.get("/api/health", headers={"X-Forwarded-For": f"10.9.9.{i}, 203.0.113.7"}).status_code
+        for i in range(5)
+    ]
+    assert 429 in codes[3:]
+
+
 def test_rate_limit_refills_over_time():
     t = [0.0]
     lim = InMemoryRateLimiter(per_minute=60, burst=1, clock=lambda: t[0])

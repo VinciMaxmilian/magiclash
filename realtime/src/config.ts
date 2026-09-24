@@ -7,6 +7,8 @@ export interface ServerConfig {
   allowedOrigins: string[];
   region: string;
   isProduction: boolean;
+  /** Proxies in front of the server that append to X-Forwarded-For (Render: 1). */
+  trustedProxyHops: number;
   /** DEV ONLY: artificial one-way delay (ms) on every message, to test netcode locally. */
   simulatedLatencyMs: number;
 }
@@ -19,7 +21,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): ServerConfig =
     gameServerSecret: secret,
     apiUrl: (env.API_URL ?? 'http://localhost:8000').replace(/\/$/, ''),
     allowedOrigins: (env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-    region: env.FLY_REGION ?? env.REGION ?? 'local',
+    region: env.REGION ?? 'local',
+    trustedProxyHops: Math.max(0, Math.min(5, Number(env.TRUSTED_PROXY_HOPS ?? 1))),
     isProduction: env.NODE_ENV === 'production',
     // Never honoured in production.
     simulatedLatencyMs: env.NODE_ENV === 'production' ? 0 : Math.max(0, Math.min(500, Number(env.SIMULATED_LATENCY_MS ?? 0))),

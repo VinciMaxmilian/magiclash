@@ -29,6 +29,7 @@ export class ResultsScene extends Phaser.Scene {
   create(data: ResultsData): void {
     this.results = data;
     svc().input.flush();
+    svc().audio.music('title');
     this.cursor = 0;
     new StageView(this, data.setup.stageId);
     this.cameras.main.setRoundPixels(true).setScroll(REF_CENTER.x - 320, REF_CENTER.y - 180 - 40);

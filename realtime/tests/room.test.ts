@@ -6,7 +6,7 @@ import { JoinTokenVerifier, type JoinClaims } from '../src/auth';
 import { Room, type Conn } from '../src/room';
 import { createHmac } from 'node:crypto';
 import { createReporter, type MatchReport } from '../src/report';
-import { startServer } from '../src/server';
+import { clientIp, startServer } from '../src/server';
 
 const SECRET = 'realtime-test-secret-0123456789-abcdef';
 const MATCH = '44444444-4444-4444-4444-444444444444';
@@ -234,7 +234,7 @@ describe('websocket server', () => {
   it('authenticates via first message, rejects bad origins and reused tokens', async () => {
     const port = 18787 + Math.floor(Math.random() * 1000);
     const server = startServer(
-      { port, gameServerSecret: SECRET, apiUrl: 'http://127.0.0.1:1', allowedOrigins: ['http://game.test'], region: 'test', isProduction: true, simulatedLatencyMs: 0 },
+      { port, gameServerSecret: SECRET, apiUrl: 'http://127.0.0.1:1', allowedOrigins: ['http://game.test'], region: 'test', isProduction: true, simulatedLatencyMs: 0, trustedProxyHops: 1 },
       async () => OK,
     );
     const url = `ws://127.0.0.1:${port}/ws`;
@@ -288,5 +288,17 @@ describe('result reporter', () => {
     const fetchImpl = (async () => new Response('{}', { status: 422 })) as unknown as typeof fetch;
     const out = await createReporter('http://api.test', SECRET, fetchImpl)(MATCH, { duration_ticks: 1, winner_team: 0, participants: [], suspicious: [] });
     expect(out).toEqual({ recorded: false, ratings: [] });
+  });
+});
+
+describe('client ip behind a proxy', () => {
+  const req = (xff: string | undefined, remote = '10.0.0.1') =>
+    ({ headers: xff === undefined ? {} : { 'x-forwarded-for': xff }, socket: { remoteAddress: remote } }) as never;
+
+  it('uses the address appended by the trusted proxy, not what the client sent', () => {
+    expect(clientIp(req('6.6.6.6, 203.0.113.9'), 1)).toBe('203.0.113.9');
+    expect(clientIp(req('203.0.113.9'), 1)).toBe('203.0.113.9');
+    expect(clientIp(req(undefined), 1)).toBe('10.0.0.1');
+    expect(clientIp(req('6.6.6.6'), 0)).toBe('10.0.0.1');
   });
 });

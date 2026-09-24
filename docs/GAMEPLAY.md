@@ -40,8 +40,11 @@ causa 11% e é recuperado ao encostar. Cooldown de 1,5 s entre arremessos.
 | **Castle Courtyard** | muralha 22 tiles + 2 passarelas + balcão central | neutro, simétrico |
 | **Enchanted Forest** | rocha-raiz mais estreita, galhos baixos | combate aéreo, favorece mobilidade |
 | **Frozen Fortress** | muralha larga, 2 plataformas de gelo em alturas diferentes | amplo, favorece zoners |
+| **Wizard Tower** | topo estreito (16 tiles) + 5 runas flutuantes em 3 níveis | vertical, favorece combate aéreo |
+| **Ancient Ruins** | chão em dois níveis (degrau = parede no meio) + capitéis de colunas | wall-jump, cobertura contra projéteis |
+| **Volcanic Keep** | palco curto sobre lava, grades baixas nas bordas | curto e agressivo |
 
-Planejados (Fase 7): Wizard Tower, Ancient Ruins, Volcanic Keep.
+A lava e outros elementos de cenário são decorativos: a eliminação é sempre pela blast zone.
 
 ## Modos
 

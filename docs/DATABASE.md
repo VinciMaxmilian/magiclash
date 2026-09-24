@@ -60,6 +60,14 @@ Bucket `avatars`:
 
 ## Rating
 
-Início: Elo (K=32, 1000 inicial) por fila; FFA como pares; 2v2 com média do time.
+Implementado em `record_match_result` (migration `20260924150000_ratings.sql`):
+- Elo K=32, 1000 inicial, mínimo 100, por fila e temporada; calculado **por pares** contra cada
+  jogador de outro time (1v1 = Elo clássico; placement define vitória/empate/derrota).
+- Só em partida `ranked` de fila (`1v1`/`ffa`/`2v2`) em que **todos** são contas.
+- Anti win-trading: dupla com 5+ partidas ranqueadas em 24 h não troca mais pontos.
+- Grava `rating_before/after` em `match_participants`, uma linha em `rating_history` por jogador e
+  devolve `{rated, ratings:[{slot,before,after}]}` (o game server repassa aos jogadores).
+- `leaderboard(queue, period, character, limit, me)`: `season` (rating), `week`/`month` (pontos
+  ganhos na janela), `character` (vitórias ranqueadas com a classe). Só service role; exposto por
+  `GET /api/leaderboard` (cache de 30 s, sem ids de usuário na resposta).
 Colunas `rd` já existem para migrar para Glicko-2 sem mudar o schema.
-Temporadas: `player_ratings` é por `(user_id, season_id, queue)`.

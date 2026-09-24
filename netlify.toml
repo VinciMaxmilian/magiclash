@@ -1,4 +1,4 @@
-# Frontend (static) — Netlify. Backend API lives on Vercel, game server on Fly.io (docs/DEPLOY.md).
+# Frontend (static) — Netlify. API and game server live on Render (render.yaml), data on Supabase (docs/DEPLOY.md).
 [build]
   base = "."
   command = "npm ci && npm test && npm run build"
@@ -13,8 +13,8 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    # connect-src: add the Vercel API, Supabase and game-server origins when online features ship.
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.vercel.app wss://*.fly.dev; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    # connect-src: Supabase + Render services (API over https, game server over wss). Narrow to the exact hosts once known.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.onrender.com wss://*.onrender.com; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"

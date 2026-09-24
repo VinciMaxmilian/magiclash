@@ -17,7 +17,7 @@ class _Bucket:
 class InMemoryRateLimiter:
     """Token bucket per key.
 
-    Serverless caveat: each Vercel instance has its own memory, so this is a best-effort
+    Caveat: each process has its own memory, so this is a best-effort
     first line of defence. Sensitive endpoints (auth, matchmaking) use a shared store
     (Upstash Redis / Postgres) behind this same interface in production.
     """

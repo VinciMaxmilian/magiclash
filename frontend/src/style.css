@@ -99,3 +99,78 @@ body {
   color: #b7c2d6;
   max-width: 100%;
 }
+
+/* Touch controls (TouchSource) — only created on coarse-pointer devices. */
+.mc-touch {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mc-touch-hidden {
+  display: none;
+}
+.mc-touch-stickzone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  height: 75%;
+  pointer-events: auto;
+  touch-action: none;
+}
+.mc-touch-stick {
+  position: absolute;
+  left: 40px;
+  bottom: 40px;
+  width: 112px;
+  height: 112px;
+  border: 3px solid rgba(238, 242, 247, 0.35);
+  border-radius: 50%;
+  background: rgba(26, 20, 34, 0.35);
+  opacity: 0.35;
+}
+.mc-touch-knob {
+  position: absolute;
+  left: 34px;
+  top: 34px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(242, 210, 122, 0.75);
+  border: 3px solid #1a1422;
+}
+.mc-touch-buttons {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  height: 230px;
+}
+.mc-touch-btn {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border: 3px solid #1a1422;
+  border-radius: 50%;
+  background: rgba(238, 242, 247, 0.2);
+  color: #eef2f7;
+  font: bold 9px 'Courier New', Courier, monospace;
+  text-shadow: 1px 1px 0 #1a1422;
+  padding: 0;
+}
+.mc-touch-btn.down {
+  background: rgba(242, 210, 122, 0.55);
+}
+.mc-touch-jump {
+  background: rgba(95, 180, 222, 0.3);
+}
+.mc-touch-pause {
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}

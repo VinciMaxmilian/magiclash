@@ -3,6 +3,9 @@ import { PixelBuffer } from '../render/pixelBuffer';
 import { buildCastleCourtyardArt, parallaxPosition, type StageArt } from './castleCourtyardArt';
 import { buildEnchantedForestArt } from './enchantedForestArt';
 import { buildFrozenFortressArt } from './frozenFortressArt';
+import { buildWizardTowerArt } from './wizardTowerArt';
+import { buildAncientRuinsArt } from './ancientRuinsArt';
+import { buildVolcanicKeepArt } from './volcanicKeepArt';
 import { EFFECT_ORIGINS } from '../render/textures';
 import type { EffectManager } from '../effects/EffectManager';
 import { PAL } from '../render/palette';
@@ -11,6 +14,9 @@ const ART_BUILDERS: Record<string, () => StageArt> = {
   castle_courtyard: buildCastleCourtyardArt,
   enchanted_forest: buildEnchantedForestArt,
   frozen_fortress: buildFrozenFortressArt,
+  wizard_tower: buildWizardTowerArt,
+  ancient_ruins: buildAncientRuinsArt,
+  volcanic_keep: buildVolcanicKeepArt,
 };
 
 const cache = new Map<string, StageArt>();
@@ -89,6 +95,10 @@ export class StageView {
     } else if (this.ambient === 'fireflies' && Math.random() < 0.03 * dt) {
       this.fx.burst(cam.scrollX + Math.random() * 640, cam.scrollY + 60 + Math.random() * 260, 1, [PAL.lightning[4], PAL.moss[3], PAL.ice[3]], {
         speed: 0.25, gravity: 0, life: 150, drag: 1,
+      });
+    } else if (this.ambient === 'arcane' && Math.random() < 0.035 * dt) {
+      this.fx.burst(cam.scrollX + Math.random() * 640, cam.scrollY + 200 + Math.random() * 160, 1, [PAL.lightning[3], PAL.lightning[2], PAL.lightning[4]], {
+        speed: 0.35, gravity: -0.004, life: 170, angle: -Math.PI / 2, spread: 0.6, drag: 0.998,
       });
     } else if (this.ambient === 'snow' && Math.random() < 0.09 * dt) {
       this.fx.burst(cam.scrollX + Math.random() * 700 - 30, cam.scrollY - 4, 1, [PAL.white, PAL.ice[4], PAL.ice[3]], {

@@ -1,5 +1,6 @@
 import { AudioManager } from './audio/AudioManager';
-import { GamepadSource, InputManager, KeyboardSource } from './input/InputManager';
+import { GamepadSource, InputManager, KeyboardSource, type InputSource } from './input/InputManager';
+import { TouchSource, hasTouch } from './input/TouchSource';
 import { loadSettings, saveSettings, type Settings } from '../ui/settings';
 
 /** Long-lived singletons shared by all scenes (created once in main.ts). */
@@ -17,7 +18,11 @@ export const initServices = (): Services => {
   const audio = new AudioManager();
   audio.setVolumes(settings.masterVolume, settings.musicVolume, settings.sfxVolume);
   services = {
-    input: new InputManager([new KeyboardSource(window), new GamepadSource()]),
+    input: new InputManager([
+      new KeyboardSource(window),
+      new GamepadSource(),
+      ...(hasTouch() ? [new TouchSource(document.body) as InputSource] : []),
+    ]),
     audio,
     settings,
     saveSettings() {

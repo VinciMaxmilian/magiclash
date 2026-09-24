@@ -1,4 +1,5 @@
 import { jwtVerify } from 'jose';
+import { STAGES as SHARED_STAGES } from '@magiclash/shared';
 
 /** Claims the backend puts in a join token (see backend/app/api/online.py). */
 export interface JoinClaims {
@@ -22,7 +23,7 @@ const UUID = /^[0-9a-f-]{36}$/;
 const GUEST = /^g_[0-9a-f]{16}$/;
 const NAME = /^[A-Za-z0-9_]{3,16}$/;
 const AVATAR = /^[0-9a-f-]{36}\/[0-9a-f]{32}\.webp$/;
-const STAGES = new Set(['castle_courtyard', 'enchanted_forest', 'frozen_fortress']);
+const STAGES = new Set(Object.keys(SHARED_STAGES));
 
 export class JoinTokenVerifier {
   private readonly key: Uint8Array;

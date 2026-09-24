@@ -17,8 +17,18 @@ export interface RealtimeServer {
   close(): Promise<void>;
 }
 
-const clientIp = (req: IncomingMessage): string =>
-  (String(req.headers['fly-client-ip'] ?? req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress) ?? '?';
+/**
+ * Each trusted proxy APPENDS the address it saw to X-Forwarded-For; entries to the left of those
+ * come from the client and can be forged, so the per-IP connection limit never uses them.
+ */
+export const clientIp = (req: IncomingMessage, trustedHops: number): string => {
+  const parts = String(req.headers['x-forwarded-for'] ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (trustedHops > 0 && parts.length > 0) return parts[Math.max(0, parts.length - trustedHops)];
+  return req.socket.remoteAddress ?? '?';
+};
 
 export const startServer = (cfg: ServerConfig, reporter: Reporter = createReporter(cfg.apiUrl, cfg.gameServerSecret)): RealtimeServer => {
   const verifier = new JoinTokenVerifier(cfg.gameServerSecret);
@@ -42,7 +52,7 @@ export const startServer = (cfg: ServerConfig, reporter: Reporter = createReport
     verifyClient: ({ origin, req }, done) => {
       // Browsers always send Origin; only listed origins may connect.
       const allowed = origin ? cfg.allowedOrigins.includes(origin) : !cfg.isProduction;
-      const ip = clientIp(req);
+      const ip = clientIp(req, cfg.trustedProxyHops);
       if (!allowed) {
         log('AUTH_FAILURE', { reason: 'origin', origin: origin?.slice(0, 80) }, 'warn');
         return done(false, 403, 'Forbidden');
@@ -56,7 +66,7 @@ export const startServer = (cfg: ServerConfig, reporter: Reporter = createReport
   });
 
   wss.on('connection', (ws: WebSocket, req) => {
-    const ip = clientIp(req);
+    const ip = clientIp(req, cfg.trustedProxyHops);
     perIp.set(ip, (perIp.get(ip) ?? 0) + 1);
     const lag = cfg.simulatedLatencyMs;
     const conn: Conn = {

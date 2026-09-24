@@ -100,3 +100,30 @@ it.skipIf(!DIR)('all fighters', async () => {
   });
   save('fighters.png', sheet, 3);
 });
+
+it.skipIf(!DIR)('every stage at the reference view', async () => {
+  const { parallaxPosition, REF_CENTER } = await import('../src/game/maps/castleCourtyardArt');
+  const { STAGE_ORDER, STAGES } = await import('@magiclash/shared');
+  const builders = {
+    castle_courtyard: (await import('../src/game/maps/castleCourtyardArt')).buildCastleCourtyardArt,
+    enchanted_forest: (await import('../src/game/maps/enchantedForestArt')).buildEnchantedForestArt,
+    frozen_fortress: (await import('../src/game/maps/frozenFortressArt')).buildFrozenFortressArt,
+    wizard_tower: (await import('../src/game/maps/wizardTowerArt')).buildWizardTowerArt,
+    ancient_ruins: (await import('../src/game/maps/ancientRuinsArt')).buildAncientRuinsArt,
+    volcanic_keep: (await import('../src/game/maps/volcanicKeepArt')).buildVolcanicKeepArt,
+  } as const;
+  for (const id of STAGE_ORDER) {
+    const art = builders[id]();
+    const view = new PixelBuffer(640, 360);
+    const scrollX = REF_CENTER.x - 320;
+    const scrollY = REF_CENTER.y - 180;
+    for (const l of art.parallax) {
+      const p = parallaxPosition(l);
+      view.blit(l.buf, Math.round(p.x - scrollX * l.sf), Math.round(p.y - scrollY * l.sf));
+    }
+    view.blit(art.world.buf, art.world.x - scrollX, art.world.y - scrollY);
+    // spawn markers (feet) to check that the art matches the collision data
+    for (const s of STAGES[id].spawns) view.rect(s.x - scrollX - 1, s.y - scrollY - 3, 3, 3, 0xff00ff);
+    save(`stage_${id}.png`, view, 2);
+  }
+});

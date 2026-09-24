@@ -7,6 +7,9 @@ import { FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE } from './characters/mages';
 import { CASTLE_COURTYARD } from './stages/castleCourtyard';
 import { ENCHANTED_FOREST } from './stages/enchantedForest';
 import { FROZEN_FORTRESS } from './stages/frozenFortress';
+import { WIZARD_TOWER } from './stages/wizardTower';
+import { ANCIENT_RUINS } from './stages/ancientRuins';
+import { VOLCANIC_KEEP } from './stages/volcanicKeep';
 
 export const CHARACTERS: Readonly<Record<string, CharacterDefinition>> = {
   [KNIGHT.id]: KNIGHT,
@@ -24,9 +27,19 @@ export const STAGES: Readonly<Record<string, StageDefinition>> = {
   [CASTLE_COURTYARD.id]: CASTLE_COURTYARD,
   [ENCHANTED_FOREST.id]: ENCHANTED_FOREST,
   [FROZEN_FORTRESS.id]: FROZEN_FORTRESS,
+  [WIZARD_TOWER.id]: WIZARD_TOWER,
+  [ANCIENT_RUINS.id]: ANCIENT_RUINS,
+  [VOLCANIC_KEEP.id]: VOLCANIC_KEEP,
 };
 
-export const STAGE_ORDER = ['castle_courtyard', 'enchanted_forest', 'frozen_fortress'] as const;
+export const STAGE_ORDER = [
+  'castle_courtyard',
+  'enchanted_forest',
+  'frozen_fortress',
+  'wizard_tower',
+  'ancient_ruins',
+  'volcanic_keep',
+] as const;
 
 export const getCharacter = (id: string): CharacterDefinition => {
   const c = CHARACTERS[id];
@@ -40,4 +53,4 @@ export const getStage = (id: string): StageDefinition => {
   return s;
 };
 
-export { KNIGHT, BARBARIAN, ARCHER, FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE, CASTLE_COURTYARD, ENCHANTED_FOREST, FROZEN_FORTRESS };
+export { KNIGHT, BARBARIAN, ARCHER, FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE, CASTLE_COURTYARD, ENCHANTED_FOREST, FROZEN_FORTRESS, WIZARD_TOWER, ANCIENT_RUINS, VOLCANIC_KEEP };

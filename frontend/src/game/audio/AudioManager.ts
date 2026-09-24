@@ -1,4 +1,5 @@
 import { SFX, type SfxId } from './sfx';
+import { MusicPlayer, type TrackId } from './music';
 
 export type Bus = 'music' | 'sfx' | 'ui' | 'ambient';
 
@@ -16,11 +17,13 @@ export class AudioManager {
   private ambientLfo: OscillatorNode | null = null;
   private volumes = { master: 0.8, music: 0.6, sfx: 0.9 };
   private lastPlayed = new Map<SfxId, number>();
+  private wantedTrack: TrackId | null = null;
+  private player: MusicPlayer | null = null;
 
   constructor() {
     const unlock = () => {
       this.ensure();
-      void this.ctx?.resume();
+      void this.ctx?.resume().then(() => this.syncMusic());
     };
     window.addEventListener('keydown', unlock);
     window.addEventListener('pointerdown', unlock);
@@ -80,6 +83,22 @@ export class AudioManager {
     if (now - (this.lastPlayed.get(id) ?? -1) < 0.03) return;
     this.lastPlayed.set(id, now);
     synth(this.ctx, this.buses[bus], this.noise, now, pitch * (0.95 + Math.random() * 0.1));
+  }
+
+  /**
+   * Switches the looping background track (null = silence). Safe to call before the first user
+   * gesture: the track starts as soon as audio is unlocked. Same track = no restart.
+   */
+  music(track: TrackId | null): void {
+    this.wantedTrack = track;
+    this.syncMusic();
+  }
+
+  private syncMusic() {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    if (this.player?.track === this.wantedTrack) return;
+    this.player?.stop();
+    this.player = this.wantedTrack ? new MusicPlayer(this.ctx, this.buses.music, this.noise, this.wantedTrack) : null;
   }
 
   /** Low wind bed for stage ambience. */

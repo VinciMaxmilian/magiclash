@@ -91,10 +91,7 @@ export class GamepadSource implements InputSource {
   dispose() {}
 }
 
-/**
- * Touch controls (virtual stick + buttons) will implement InputSource the same way;
- * nothing else in the game needs to change. Planned for the mobile phase (ROADMAP).
- */
+// Touch controls: TouchSource.ts (same interface; only created on touch devices).
 
 export class InputManager {
   private sources: InputSource[];

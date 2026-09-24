@@ -10,6 +10,7 @@ import { AuthScene } from './game/scenes/AuthScene';
 import { ProfileScene } from './game/scenes/ProfileScene';
 import { OnlineScene } from './game/scenes/OnlineScene';
 import { LobbyScene } from './game/scenes/LobbyScene';
+import { LeaderboardScene } from './game/scenes/LeaderboardScene';
 import { account } from './services/account';
 
 const BASE_W = 640;
@@ -43,7 +44,7 @@ const game = new Phaser.Game({
   banner: __DEV_TOOLS__,
   // HTML inputs (login/profile forms) live in Phaser's DOM layer, scaled with the canvas.
   dom: { createContainer: true },
-  scene: [BootScene, TitleScene, SelectScene, MatchScene, ResultsScene, AuthScene, ProfileScene, OnlineScene, LobbyScene],
+  scene: [BootScene, TitleScene, SelectScene, MatchScene, ResultsScene, AuthScene, ProfileScene, OnlineScene, LobbyScene, LeaderboardScene],
 });
 
 /** F toggles browser fullscreen (must come from a user gesture, so it's a key handler). */

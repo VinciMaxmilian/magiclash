@@ -206,6 +206,7 @@ export class MatchScene extends Phaser.Scene {
     if (this.net) this.setupNet(this.net);
 
     s.audio.startAmbient();
+    s.audio.music('battle');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.netOff.forEach((f) => f());
       this.netOff = [];

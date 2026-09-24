@@ -19,9 +19,9 @@
             HTTPS (REST)│           │ WSS        │ supabase-js (auth + leituras públicas com RLS)
                         ▼           ▼            ▼
     ┌───────────────────────┐ ┌───────────────────────┐ ┌──────────────────────────┐
-    │ API FastAPI (Vercel)  │ │ Game Server realtime  │ │ Supabase                 │
-    │ serverless, stateless │ │ Node/TS persistente   │ │ Postgres + RLS, Auth,    │
-    │ perfis, matchmaking,  │ │ (Fly.io, região GRU)  │ │ Storage, Realtime        │
+    │ API FastAPI (Render)  │ │ Game Server realtime  │ │ Supabase                 │
+    │ stateless             │ │ Node/TS persistente   │ │ Postgres + RLS, Auth,    │
+    │ perfis, matchmaking,  │ │ (Render, WebSocket)   │ │ Storage, Realtime        │
     │ leaderboard, results, │ │ autoritativo, 60 Hz   │ │                          │
     │ validação, rate limit │ │ roda @magiclash/shared│ │                          │
     └──────────┬────────────┘ └──────────┬────────────┘ └────────────▲─────────────┘
@@ -34,13 +34,14 @@ Quatro peças, cada uma no lugar onde a infraestrutura é adequada:
 | Peça | Hospedagem | Responsabilidade |
 |---|---|---|
 | Frontend | Netlify (CDN estática) | Renderização, input, UI, predição local |
-| API HTTP | Vercel (FastAPI serverless) | Perfis, matchmaking, emissão de tokens de partida, validação e gravação de resultados, leaderboard, avatar upload |
-| Game Server | **Componente adicional** — Fly.io (ou Railway/Hetzner) | Loop autoritativo das partidas online via WebSocket |
+| API HTTP | Render (web service Python) | Perfis, matchmaking, emissão de tokens de partida, validação e gravação de resultados, leaderboard, avatar upload |
+| Game Server | Render (web service Node, processo persistente) | Loop autoritativo das partidas online via WebSocket |
 | Dados | Supabase | Postgres + RLS, Auth, Storage, Realtime (notificações não-críticas) |
 
-**Por que um componente adicional?** Resposta curta: Netlify + Vercel + Supabase **não são
-suficientes** para multiplayer realtime autoritativo de 4 jogadores. A análise completa está em
-[NETWORKING.md §1](NETWORKING.md#1-netlify--vercel--supabase-bastam-para-realtime-de-4-jogadores).
+**Por que um game server separado?** Hospedagem estática (Netlify), funções serverless e o
+Realtime do Supabase **não** rodam um loop autoritativo de 60 Hz com WebSockets abertos. É preciso
+um processo Node sempre vivo — no Render ele é um segundo web service do mesmo `render.yaml`.
+Análise completa em [NETWORKING.md §1](NETWORKING.md#1-o-que-cada-servi%C3%A7o-consegue-fazer).
 
 ---
 
@@ -81,8 +82,8 @@ frontend/src/
     scenes/                Boot, Title, Match, Results (UI Phaser)
     render/                FighterView, StageView, gerador procedural de sprites (placeholder)
     effects/               EffectManager: sparks, slashes, poeira, trails, shake, hit-flash
-    audio/                 AudioManager com buses (master/music/sfx/ui/ambient), SFX sintetizados
-    input/                 InputManager + adaptadores (teclado, gamepad; touch preparado)
+    audio/                 AudioManager com buses (master/music/sfx/ui/ambient), SFX sintetizados, música chiptune (sequenciador)
+    input/                 InputManager + adaptadores (teclado, gamepad, touch)
     maps/                  StageArt por mapa (camadas, parallax, animações)
     debug/                 overlay de hitbox/hurtbox/estado/FPS — carregado só em DEV
   ui/                      fonte bitmap, painéis, HUD
@@ -99,17 +100,16 @@ Fluxo por frame de tela (`MatchScene.update`):
 
 ## 4. Arquitetura do backend
 
-FastAPI stateless (serverless na Vercel). Organização:
+FastAPI stateless (uvicorn no Render). Organização:
 
 ```
 backend/
-  api/index.py             entrypoint Vercel (ASGI)
   app/
     main.py                create_app(): middlewares, routers, handlers
     core/config.py         Settings (pydantic-settings, lidas do ambiente)
     core/logging.py        log estruturado JSON + redaction de segredos/tokens
     security/              headers, CORS, rate limit, auth (JWT Supabase), assinatura HMAC do game server
-    api/                   routers: health, (Fase 4) profiles, (5) matchmaking, matches, (6) leaderboard
+    api/                   routers: health, profiles, online (guest, salas, fila), internal (resultado), leaderboard
     schemas/               modelos Pydantic de entrada/saída (validação estrita, extra=forbid)
     services/              regras de negócio (rating, validação de resultado)
     repositories/          acesso ao Supabase (service role — só aqui)

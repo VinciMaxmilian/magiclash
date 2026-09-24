@@ -45,7 +45,7 @@ export interface StageArt {
   world: WorldLayer;
   torches: TorchSpot[];
   /** Ambient particles drawn by StageView. */
-  ambient: 'embers' | 'fireflies' | 'snow';
+  ambient: 'embers' | 'fireflies' | 'snow' | 'arcane';
 }
 
 export const margins = (sf: number) => ({ mx: Math.ceil(PAN_X * sf) + 8, my: Math.ceil(PAN_Y * sf) + 8 });
