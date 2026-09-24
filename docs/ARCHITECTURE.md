@@ -34,13 +34,13 @@ Quatro peças, cada uma no lugar onde a infraestrutura é adequada:
 | Peça | Hospedagem | Responsabilidade |
 |---|---|---|
 | Frontend | Netlify (CDN estática) | Renderização, input, UI, predição local |
-| API HTTP | Render (web service Python) | Perfis, matchmaking, emissão de tokens de partida, validação e gravação de resultados, leaderboard, avatar upload |
-| Game Server | Render (web service Node, processo persistente) | Loop autoritativo das partidas online via WebSocket |
+| API HTTP | Render (mesmo container do game server, atrás do proxy `/api/*`) | Perfis, matchmaking, emissão de tokens de partida, validação e gravação de resultados, leaderboard, avatar upload |
+| Game Server | Render (um web service Docker: Node público + FastAPI em loopback) | Loop autoritativo das partidas online via WebSocket |
 | Dados | Supabase | Postgres + RLS, Auth, Storage, Realtime (notificações não-críticas) |
 
 **Por que um game server separado?** Hospedagem estática (Netlify), funções serverless e o
 Realtime do Supabase **não** rodam um loop autoritativo de 60 Hz com WebSockets abertos. É preciso
-um processo Node sempre vivo — no Render ele é um segundo web service do mesmo `render.yaml`.
+um processo Node sempre vivo — no Render ele divide o container com a API (`Dockerfile`).
 Análise completa em [NETWORKING.md §1](NETWORKING.md#1-o-que-cada-servi%C3%A7o-consegue-fazer).
 
 ---

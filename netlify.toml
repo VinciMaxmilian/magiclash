@@ -9,6 +9,10 @@
   # Explicit: dev tools are also gated on the Vite mode, but never build prod with NODE_ENV=development.
   NODE_ENV = "production"
   NPM_CONFIG_PRODUCTION = "false"
+  # The VITE_* values are PUBLIC by design (API address, Supabase URL, publishable/anon key) and are
+  # compiled into the bundle, so the secrets scanner must skip exactly these keys. Server secrets
+  # never belong in Netlify at all; they live on Render.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL,VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
 
 [[headers]]
   for = "/*"

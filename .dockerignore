@@ -1,0 +1,17 @@
+# Keep the image small and secret-free.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__
+**/.pytest_cache
+.git
+backend/.venv
+backend/tests
+frontend/src
+frontend/tests
+frontend/public
+docs
+supabase
+assets-raw

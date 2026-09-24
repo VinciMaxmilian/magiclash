@@ -4,8 +4,8 @@
 
 Hospedagem estática, funções serverless e o Realtime do Supabase servem para tudo *em volta* da
 partida, mas não para a partida em si. Falta um **servidor de jogo persistente com WebSocket que
-rode o loop autoritativo**. Decisão atual: API **e** game server no **Render** (dois web services,
-`render.yaml`); Vercel e Fly.io foram descartados (Fly.io é pago).
+rode o loop autoritativo**. Decisão atual: API **e** game server no **Render**, num único web service Docker
+(Node público faz proxy de `/api/*` para o FastAPI em loopback); Vercel e Fly.io foram descartados (Fly.io é pago).
 
 ### Netlify
 Hospedagem estática + functions serverless. Não mantém conexões nem processos longos.

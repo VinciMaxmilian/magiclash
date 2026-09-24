@@ -234,7 +234,7 @@ describe('websocket server', () => {
   it('authenticates via first message, rejects bad origins and reused tokens', async () => {
     const port = 18787 + Math.floor(Math.random() * 1000);
     const server = startServer(
-      { port, gameServerSecret: SECRET, apiUrl: 'http://127.0.0.1:1', allowedOrigins: ['http://game.test'], region: 'test', isProduction: true, simulatedLatencyMs: 0, trustedProxyHops: 1 },
+      { port, gameServerSecret: SECRET, apiUrl: 'http://127.0.0.1:1', allowedOrigins: ['http://game.test'], region: 'test', isProduction: true, simulatedLatencyMs: 0, trustedProxyHops: 1, apiProxyTarget: null },
       async () => OK,
     );
     const url = `ws://127.0.0.1:${port}/ws`;
@@ -300,5 +300,52 @@ describe('client ip behind a proxy', () => {
     expect(clientIp(req('203.0.113.9'), 1)).toBe('203.0.113.9');
     expect(clientIp(req(undefined), 1)).toBe('10.0.0.1');
     expect(clientIp(req('6.6.6.6'), 0)).toBe('10.0.0.1');
+  });
+});
+
+describe('single-container api proxy', () => {
+  it('forwards /api/* to the API (method, body, headers) and nothing else', async () => {
+    const { createServer } = await import('node:http');
+    const seen: { method?: string; url?: string; body: string; xff?: string }[] = [];
+    const api = createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        seen.push({ method: req.method, url: req.url, body, xff: req.headers['x-forwarded-for'] as string });
+        res.writeHead(201, { 'Content-Type': 'application/json', 'X-From': 'api' });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((r) => api.listen(0, '127.0.0.1', r));
+    const apiPort = (api.address() as { port: number }).port;
+    const port = 19787 + Math.floor(Math.random() * 1000);
+    const server = startServer(
+      { port, gameServerSecret: SECRET, apiUrl: 'http://127.0.0.1:1', allowedOrigins: [], region: 'test', isProduction: true, simulatedLatencyMs: 0, trustedProxyHops: 1, apiProxyTarget: `http://127.0.0.1:${apiPort}` },
+      async () => OK,
+    );
+    try {
+      await vi.waitFor(async () => expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200));
+      const r = await fetch(`http://127.0.0.1:${port}/api/rooms?x=1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '6.6.6.6, 203.0.113.9' },
+        body: '{"mode":"duel"}',
+      });
+      expect(r.status).toBe(201);
+      expect(r.headers.get('x-from')).toBe('api');
+      expect(await r.json()).toEqual({ ok: true });
+      expect(seen[0]).toEqual({ method: 'POST', url: '/api/rooms?x=1', body: '{"mode":"duel"}', xff: '6.6.6.6, 203.0.113.9' });
+      expect((await fetch(`http://127.0.0.1:${port}/apix`)).status).toBe(404); // only the /api/ prefix
+    } finally {
+      await server.close();
+      api.close();
+    }
+  });
+
+  it('only accepts a loopback http target', async () => {
+    const { loadConfig } = await import('../src/config');
+    const base = { GAME_SERVER_SECRET: SECRET };
+    expect(loadConfig({ ...base, API_PROXY_TARGET: 'http://127.0.0.1:8000' }).apiProxyTarget).toBe('http://127.0.0.1:8000');
+    expect(() => loadConfig({ ...base, API_PROXY_TARGET: 'http://evil.test:8000' })).toThrow();
+    expect(loadConfig(base).apiProxyTarget).toBeNull();
   });
 });

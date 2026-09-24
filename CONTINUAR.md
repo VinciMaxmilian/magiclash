@@ -26,7 +26,8 @@ Fases **0–7 implementadas**. Testes automatizados verdes; verificação no nav
   `GET /api/leaderboard` (temporada/semana/mês/classe), tela RANKING, rating na tela de resultados.
 - **Polish (Fase 7)**: mapas Wizard Tower, Ancient Ruins, Volcanic Keep; música chiptune procedural
   (menu/batalha); controles touch (stick + botões, só em telas de toque).
-- **Hospedagem**: Netlify (front) + Render (API e game server, `render.yaml`) + Supabase. Sem Vercel/Fly.
+- **Hospedagem**: Netlify (front) + Render (**um** serviço Docker: game server Node público + API FastAPI
+  em loopback via proxy `/api/*`; `Dockerfile`, `deploy/start.sh`, `render.yaml`) + Supabase. Sem Vercel/Fly.
 - **Supabase** (projeto `magiclash`, `cvflnhkaelgsdjrgkkfu`, sa-east-1): 4 migrations aplicadas + 1 pendente (`20260924150000_ratings.sql`)
   (`supabase/migrations/`), RLS deny-by-default verificado por testes de integração reais.
 - **Contas**: login/registro email+senha (Supabase Auth), perfil (nome, favorito, avatar padrão

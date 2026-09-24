@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type Server } from 'node:http';
+import { createServer, request as httpRequest, type IncomingHttpHeaders, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { MAX_MESSAGE_BYTES, PROTOCOL_VERSION, TICK_SECONDS } from '@magiclash/shared';
@@ -30,12 +30,42 @@ export const clientIp = (req: IncomingMessage, trustedHops: number): string => {
   return req.socket.remoteAddress ?? '?';
 };
 
+const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'proxy-connection', 'transfer-encoding', 'upgrade', 'te', 'trailer']);
+const PROXY_TIMEOUT_MS = 30_000;
+
+const endToEnd = (h: IncomingHttpHeaders) =>
+  Object.fromEntries(Object.entries(h).filter(([k, v]) => v !== undefined && !HOP_BY_HOP.has(k))) as Record<string, string | string[]>;
+
+/**
+ * Forwards one /api/ request to the FastAPI process in the same container. Headers pass through
+ * unchanged — including X-Forwarded-For, so the API still sees the address appended by Render's
+ * proxy (TRUSTED_PROXY_HOPS=1 stays correct). Bodies are streamed, never buffered here; the API
+ * enforces its own size limits.
+ */
+const proxyToApi = (target: string, req: IncomingMessage, res: ServerResponse) => {
+  const t = new URL(target);
+  const upstream = httpRequest(
+    { hostname: t.hostname, port: t.port, method: req.method, path: req.url, headers: endToEnd(req.headers), timeout: PROXY_TIMEOUT_MS },
+    (r) => {
+      res.writeHead(r.statusCode ?? 502, endToEnd(r.headers));
+      r.pipe(res);
+    },
+  );
+  upstream.on('timeout', () => upstream.destroy(new Error('timeout')));
+  upstream.on('error', () => {
+    if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end('{"error":"api_unavailable"}');
+  });
+  req.pipe(upstream);
+};
+
 export const startServer = (cfg: ServerConfig, reporter: Reporter = createReporter(cfg.apiUrl, cfg.gameServerSecret)): RealtimeServer => {
   const verifier = new JoinTokenVerifier(cfg.gameServerSecret);
   const rooms = new Map<string, Room>();
   const perIp = new Map<string, number>();
 
   const http = createServer((req, res) => {
+    if (cfg.apiProxyTarget && req.url?.startsWith('/api/')) return proxyToApi(cfg.apiProxyTarget, req, res);
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ status: 'ok', rooms: rooms.size, region: cfg.region }));
