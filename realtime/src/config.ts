@@ -35,7 +35,11 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): ServerConfig =
     port: Number(env.PORT ?? 8787),
     gameServerSecret: secret,
     apiUrl: (env.API_URL ?? 'http://localhost:8000').replace(/\/$/, ''),
-    allowedOrigins: (env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    // Same normalisation as the API: quotes, spaces and a trailing slash are paste mistakes.
+    allowedOrigins: (env.ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((s) => s.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, ''))
+      .filter(Boolean),
     region: env.REGION ?? 'local',
     trustedProxyHops: Math.max(0, Math.min(5, Number(env.TRUSTED_PROXY_HOPS ?? 1))),
     apiProxyTarget: parseProxyTarget(env.API_PROXY_TARGET),

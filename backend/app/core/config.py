@@ -43,7 +43,9 @@ class Settings(BaseSettings):
 
     @property
     def origins(self) -> list[str]:
-        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+        # Browsers send Origin as scheme://host[:port] with no path, so tolerate the usual paste
+        # mistakes in the dashboard (quotes, spaces, trailing slash). Matching stays exact.
+        return [o.strip().strip("'\"").rstrip("/") for o in self.allowed_origins.split(",") if o.strip().strip("'\"")]
 
     @property
     def is_production(self) -> bool:

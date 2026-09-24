@@ -181,3 +181,13 @@ def test_json_formatter_redacts_messages():
     line = JsonFormatter().format(rec)
     assert "secret.token.value" not in line
     assert '"p"' not in line
+
+
+def test_allowed_origins_tolerate_paste_mistakes(make_client):
+    s = make_settings(allowed_origins=' "https://magiclash.netlify.app/" , http://localhost:5173/')
+    assert s.origins == ["https://magiclash.netlify.app", "http://localhost:5173"]
+    c = make_client(settings=s)
+    ok = c.options("/api/health", headers={"Origin": "https://magiclash.netlify.app", "Access-Control-Request-Method": "GET"})
+    assert ok.status_code == 200 and ok.headers["access-control-allow-origin"] == "https://magiclash.netlify.app"
+    bad = c.options("/api/health", headers={"Origin": "https://evil.netlify.app", "Access-Control-Request-Method": "GET"})
+    assert "access-control-allow-origin" not in bad.headers
