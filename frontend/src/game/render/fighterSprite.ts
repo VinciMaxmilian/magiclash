@@ -56,6 +56,12 @@ export interface FighterStyle {
   bigCape?: boolean;
   /** Eye color (glowing eyes for the night creatures). */
   eye?: number;
+  /** Shirt / blouse color seen in the coat opening. */
+  shirt?: number;
+  /** Trousers ramp for `legs: 'pants'` (default wood brown). */
+  pants?: Ramp;
+  /** Inner cape color next to the team-colored lining. */
+  capeInner?: number;
 }
 
 const ROBE_FIRE: Ramp = [0x3b2420, 0x5a1a10, 0xb8361e, 0xee6a26];
@@ -65,15 +71,19 @@ const ROBE_BOLT: Ramp = [0x1f1b3a, 0x3b2a7a, 0x6a5ae0, 0xa8a0ff];
 const BASE_SIZE = { thigh: 7, shin: 7, upper: 5, fore: 5, torsoH: 10, torsoW: 10, hipDy: 0 };
 
 // Temporada 1 ramps (all from the master palette)
+// Outfit colors: hunter brown/red/black, brawler blue/white/black, vampire red/black,
+// dhampir black/gold, summoner green/yellow.
+const BLACK: Ramp = [PAL.ink, PAL.stone[0], PAL.stone[1], PAL.stone[2]];
+const RED = TEAM_RAMPS.red;
 const COAT_HUNTER: Ramp = [PAL.leather[0], PAL.leather[1], PAL.leather[2], PAL.leather[3]];
-const COAT_BRAWLER: Ramp = [PAL.steel[0], PAL.steel[1], PAL.steel[2], PAL.steel[3]];
-const COAT_VAMPIRE: Ramp = [PAL.ink, PAL.sky[0], PAL.sky[1], PAL.sky[2]];
-const COAT_DHAMPIR: Ramp = [PAL.ink, PAL.stone[0], PAL.stone[1], PAL.stone[2]];
-const DRESS_SUMMONER: Ramp = [PAL.ice[0], PAL.ice[1], PAL.ice[2], PAL.ice[3]];
+const COAT_BRAWLER: Ramp = [TEAM_RAMPS.blue[0], TEAM_RAMPS.blue[1], TEAM_RAMPS.blue[2], TEAM_RAMPS.blue[3]];
+const COAT_VAMPIRE: Ramp = BLACK;
+const COAT_DHAMPIR: Ramp = BLACK;
+const DRESS_SUMMONER: Ramp = [PAL.moss[0], PAL.moss[1], PAL.moss[2], PAL.moss[3]];
 const HAIR_DARK: Ramp = [PAL.wood[0], PAL.wood[1], PAL.wood[2], PAL.wood[3]];
 const HAIR_BROWN: Ramp = [PAL.leather[1], PAL.wood[2], PAL.wood[3], PAL.gold[2]];
-const HAIR_BLACK: Ramp = [PAL.ink, PAL.sky[1], PAL.sky[2], PAL.stone[3]];
-const HAIR_SILVER: Ramp = [PAL.stone[2], PAL.stone[4], PAL.steel[3], PAL.steel[4]];
+const HAIR_BLACK: Ramp = [PAL.ink, PAL.stone[1], PAL.stone[2], PAL.stone[3]];
+const HAIR_PALEGOLD: Ramp = [PAL.gold[1], PAL.gold[3], PAL.sky[6], PAL.white];
 const HAIR_BLONDE: Ramp = [PAL.gold[1], PAL.gold[2], PAL.gold[3], PAL.sky[6]];
 const PALE: Ramp = [PAL.skin[1], PAL.skin[2], PAL.skin[3], PAL.sky[6]];
 
@@ -93,26 +103,28 @@ export const STYLES: Record<string, FighterStyle> = {
   // ── Temporada 1 ──
   hunter: {
     id: 'hunter', head: 'hunter', torso: 'coat', arms: 'coat', legs: 'pants', weapon: 'chainwhip', cape: false,
-    coat: COAT_HUNTER, hair: HAIR_DARK, collar: 'fur', coatTail: 7, size: BASE_SIZE, family: 'melee',
+    coat: COAT_HUNTER, hair: HAIR_DARK, collar: 'fur', coatTail: 7, trim: RED[1], shirt: RED[2], pants: BLACK,
+    size: BASE_SIZE, family: 'melee',
   },
   brawler: {
     id: 'brawler', head: 'brawler', torso: 'coat', arms: 'coat', legs: 'pants', weapon: 'whip', cape: false,
-    coat: COAT_BRAWLER, hair: HAIR_BROWN, coatTail: 4, trim: PAL.steel[4],
+    coat: COAT_BRAWLER, hair: HAIR_BROWN, coatTail: 4, trim: PAL.white, shirt: PAL.steel[4], pants: BLACK,
     size: { ...BASE_SIZE, torsoW: 9 }, family: 'melee',
   },
   vampire: {
     id: 'vampire', head: 'vampire', torso: 'coat', arms: 'coat', legs: 'coat', weapon: 'none', cape: false,
-    coat: COAT_VAMPIRE, hair: HAIR_BLACK, pale: true, collar: 'high', trim: PAL.gold[2], coatTail: 9, bigCape: true,
+    coat: COAT_VAMPIRE, hair: HAIR_BLACK, pale: true, collar: 'high', trim: RED[2], shirt: RED[1], coatTail: 9, bigCape: true,
+    capeInner: RED[1],
     eye: PAL.fire[2], size: { thigh: 8, shin: 8, upper: 6, fore: 6, torsoH: 12, torsoW: 11, hipDy: -2 }, family: 'staff',
   },
   dhampir: {
     id: 'dhampir', head: 'dhampir', torso: 'coat', arms: 'coat', legs: 'coat', weapon: 'sword', cape: false,
-    coat: COAT_DHAMPIR, hair: HAIR_SILVER, pale: true, trim: PAL.steel[3], coatTail: 10, eye: PAL.gold[3],
+    coat: COAT_DHAMPIR, hair: HAIR_PALEGOLD, pale: true, trim: PAL.gold[3], shirt: PAL.gold[2], coatTail: 10, eye: PAL.gold[3],
     size: { thigh: 8, shin: 7, upper: 5, fore: 5, torsoH: 11, torsoW: 9, hipDy: -1 }, family: 'melee',
   },
   summoner: {
     id: 'summoner', head: 'summoner', torso: 'dress', arms: 'coat', legs: 'stockings', weapon: 'none', cape: false,
-    coat: DRESS_SUMMONER, hair: HAIR_BLONDE, size: { thigh: 6, shin: 6, upper: 4, fore: 5, torsoH: 8, torsoW: 8, hipDy: 0 }, family: 'staff',
+    coat: DRESS_SUMMONER, hair: HAIR_BLONDE, shirt: PAL.gold[3], size: { thigh: 6, shin: 6, upper: 4, fore: 5, torsoH: 8, torsoW: 8, hipDy: 0 }, family: 'staff',
   },
 };
 
@@ -276,7 +288,10 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
       case 'coat': return front ? [C[1], C[2], C[0], PAL.ink] : [C[0], C[1], C[0], PAL.ink];
       case 'stockings': return front ? [S[3], S[4], S[1], L[1]] : [S[2], S[3], S[1], L[0]];
       case 'fur': return front ? [L[1], L[2], L[0], W[1]] : [L[0], L[1], L[0], W[0]];
-      case 'pants': return front ? [W[1], W[2], W[0], L[1]] : [W[0], W[1], W[0], L[0]];
+      case 'pants': {
+        const P = style.pants ?? W;
+        return front ? [P[1], P[2], P[0], L[1]] : [P[0], P[1], P[0], L[0]];
+      }
       case 'robe': return front ? [L[0], L[1], PAL.ink, L[1]] : [L[0], L[0], PAL.ink, L[0]];
       default: return front ? [S[2], S[3], S[0], L[1]] : [S[1], S[1], S[0], L[0]];
     }
@@ -308,6 +323,7 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
       const right = Math.round(top[0] + 1 + (hip[0] - 2 - top[0]) * t - p.lean * 0.6 * t);
       const w = 5 + Math.floor(t * 9);
       buf.rect(right - w, y, w + 1, 1, C[1]);
+      if (style.capeInner !== undefined) buf.rect(right - w + 2, y, Math.max(1, Math.floor(w / 3)), 1, style.capeInner);
       buf.rect(right - w, y, 2, 1, T[1]);
       buf.set(right - w, y, T[0]);
       if (r % 5 === 2) buf.set(right - w + 4, y, C[0]); // folds
@@ -319,7 +335,7 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
     for (let r = 0; r < 7; r++) {
       const y = Math.round(top[1] - 1 - r);
       const w = 4 + Math.floor(r / 2);
-      buf.rect(Math.round(top[0]) - 3 - w, y, w, 1, r > 4 ? T[1] : C[1]);
+      buf.rect(Math.round(top[0]) - 3 - w, y, w, 1, r > 4 ? T[1] : style.capeInner ?? C[1]);
       buf.set(Math.round(top[0]) - 3 - w, y, T[0]);
     }
   }
@@ -425,7 +441,8 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
         buf.set(x0 + w - 1, y, C[3]);
         // open front showing the shirt, with trim along the edge
         if (r >= 1 && r < z.torsoH - 1) {
-          buf.set(cx + 1, y, style.id === 'vampire' ? PAL.fire[1] : S[3]);
+          buf.set(cx + 1, y, style.shirt ?? S[3]);
+          if (style.shirt !== undefined && r < 4) buf.set(cx, y, style.shirt);
           buf.set(cx + 2, y, style.trim ?? C[3]);
         }
         if (r < 2 && style.collar === 'fur') buf.rect(x0 - 1, y, w + 2, 1, r ? PAL.stone[3] : PAL.stone[4]);
@@ -436,9 +453,10 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
         break;
       case 'dress':
         if (r < 4) {
-          buf.rect(x0, y, w, 1, S[4]); // blouse
-          buf.set(x0 + w - 1, y, PAL.white);
-          buf.set(x0, y, S[3]);
+          const blouse = style.shirt ?? S[4];
+          buf.rect(x0, y, w, 1, blouse); // blouse
+          buf.set(x0 + w - 1, y, style.shirt !== undefined ? PAL.sky[6] : PAL.white);
+          buf.set(x0, y, style.shirt !== undefined ? PAL.gold[2] : S[3]);
         } else {
           buf.rect(x0, y, w, 1, C[2]);
           buf.set(x0, y, C[1]);
@@ -487,7 +505,7 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
       buf.rect(x0, y, w, 1, C[2]);
       buf.set(x0, y, C[1]);
       buf.set(x0 + w - 1, y, C[3]);
-      if (r === 5) buf.rect(x0, y, w, 1, PAL.white);
+      if (r === 5) buf.rect(x0, y, w, 1, style.shirt ?? PAL.white);
     }
   }
 
