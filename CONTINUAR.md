@@ -1,6 +1,6 @@
 # CONTINUAR — memória técnica do MagiClash
 
-> Atualize ao fim de cada etapa grande. Última atualização: 2026-09-24 (Fases 5, 6 e 7 implementadas; falta aplicar a migration de rating e fazer o deploy).
+> Atualize ao fim de cada etapa grande. Última atualização: 2026-09-24 (Fases 5–7 + fundos pintados + Temporada 1; faltam aplicar migrations e fazer o deploy).
 
 ## Estado atual
 
@@ -26,9 +26,19 @@ Fases **0–7 implementadas**. Testes automatizados verdes; verificação no nav
   `GET /api/leaderboard` (temporada/semana/mês/classe), tela RANKING, rating na tela de resultados.
 - **Polish (Fase 7)**: mapas Wizard Tower, Ancient Ruins, Volcanic Keep; música chiptune procedural
   (menu/batalha); controles touch (stick + botões, só em telas de toque).
+- **Temporada 1 — "Noite Eterna"** (`shared/src/data/characters/season1.ts`, `shared/src/data/seasons.ts`):
+  5 lutadores (Caçador: chicote de corrente + facas; Lutador: chicote + magia azul com disco bumerangue;
+  Vampiro: chamas infernais + grande esfera de fogo; Mestiço: espada + teleporte intangível com névoa
+  carmesim; Invocadora: pombas, gato, fênix, dragão e tartaruga) e 2 mapas (Salão do Trono, Biblioteca
+  dos Caçadores, arte procedural). Tela **TEMPORADA 1: NOVIDADES** no título (`SeasonScene`).
+  Mecânicas novas na sim: `intangible` (janela de invulnerabilidade de um golpe) e `accelX` (bumerangue).
+  Nomes, golpes e visual são originais do MagiClash (nada ligado a obras existentes).
+- **Efeitos**: flash de impacto em todo acerto, rastro nos cortes, estrela de contato nas faíscas, explosões
+  com anel e fumaça proporcionais ao tamanho, onda de choque + flash de tela no KO, poeira dupla em quedas
+  pesadas, anel pulsante ao carregar.
 - **Hospedagem**: Netlify (front) + Render (**um** serviço Docker: game server Node público + API FastAPI
   em loopback via proxy `/api/*`; `Dockerfile`, `deploy/start.sh`, `render.yaml`) + Supabase. Sem Vercel/Fly.
-- **Supabase** (projeto `magiclash`, `cvflnhkaelgsdjrgkkfu`, sa-east-1): 4 migrations aplicadas + 1 pendente (`20260924150000_ratings.sql`)
+- **Supabase** (projeto `magiclash`, `cvflnhkaelgsdjrgkkfu`, sa-east-1): 4 migrations aplicadas + 2 pendentes (`20260924150000_ratings.sql`, `20260925100000_season1_characters.sql`)
   (`supabase/migrations/`), RLS deny-by-default verificado por testes de integração reais.
 - **Contas**: login/registro email+senha (Supabase Auth), perfil (nome, favorito, avatar padrão
   ou imagem), visitante com nome temporário.
@@ -48,9 +58,9 @@ Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRE
 
 | Comando | O quê |
 |---|---|
-| `npm test` | 94 testes vitest: física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
+| `npm test` | 133 testes vitest (inclui Temporada 1): física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
 | `npm run typecheck` | TS estrito shared + frontend + realtime |
-| `cd backend; .\.venv\Scripts\python.exe main.py test` | 88 testes pytest: segurança, perfis (fake), avatar, online (guest, salas, fila, resultado assinado) |
+| `cd backend; .\.venv\Scripts\python.exe main.py test` | 102 testes pytest: segurança, perfis (fake), avatar, online (guest, salas, fila, resultado assinado) |
 | `SUPABASE_IT=1 … pytest tests/test_supabase_integration.py` | 10 testes de RLS/funções no Supabase real (cria/apaga usuários) |
 | `STATS_OUT=arquivo npm run sim:balance` | matriz de balanceamento bot×bot |
 | `ART_PREVIEW_DIR=pasta npx vitest run frontend/tests/art.preview.test.ts` | PNGs da arte procedural para revisão |
@@ -77,6 +87,8 @@ Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRE
   **Rotacionar chaves** antes de produção (foram compartilhadas em chat).
 - Registro pela UI depende da confirmação de email do Supabase (mensagem exibida).
 - Autodestruições dos bots ainda ~0,3/partida em hard; ok para bots, refinar depois.
+- **Migration pendente** `20260925100000_season1_characters.sql`: sem ela, contas não conseguem escolher
+  os lutadores da Temporada 1 como avatar/favorito (o jogo em si funciona).
 - **Migration pendente** `20260924150000_ratings.sql` (Elo + leaderboard). Sem ela tudo funciona,
   mas a tela RANKING mostra "indisponível" e partidas não alteram rating (resultados continuam gravados).
 - Testes adiados a pedido do usuário: E2E do ranking com banco real e teste em celular real.

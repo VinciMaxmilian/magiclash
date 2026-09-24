@@ -40,7 +40,22 @@ export type SfxId =
   | 'charge_full'
   | 'thud'
   | 'arrow'
-  | 'arrow_heavy';
+  | 'arrow_heavy'
+  // Temporada 1
+  | 'whip'
+  | 'whip_heavy'
+  | 'knife'
+  | 'toss'
+  | 'arcane'
+  | 'arcane_heavy'
+  | 'cape'
+  | 'bats'
+  | 'blood'
+  | 'teleport'
+  | 'summon'
+  | 'coo'
+  | 'meow'
+  | 'roar';
 
 type Synth = (ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: number, pitch: number) => void;
 
@@ -202,6 +217,61 @@ export const SFX: Record<SfxId, Synth> = {
     tone(c, o, t, { type: 'triangle', from: 300 * p, to: 180 * p, peak: 0.06, attack: 0.005, decay: 0.15 });
   },
   thud: (c, o, n, t) => noiseBurst(c, o, n, t, { type: 'lowpass', from: 600, to: 100, peak: 0.35, attack: 0.002, decay: 0.08 }),
+  // ── Temporada 1 ──
+  whip: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 900 * p, to: 3200 * p, q: 1.2, peak: 0.25, attack: 0.06, decay: 0.03 });
+    noiseBurst(c, o, n, t + 0.09, { type: 'highpass', from: 5000 * p, to: 2500, peak: 0.55, attack: 0.001, decay: 0.04 });
+  },
+  whip_heavy: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 700 * p, to: 2600 * p, q: 1, peak: 0.35, attack: 0.1, decay: 0.04 });
+    noiseBurst(c, o, n, t + 0.14, { type: 'highpass', from: 4200 * p, to: 1800, peak: 0.8, attack: 0.001, decay: 0.07 });
+    for (let i = 0; i < 3; i++) tone(c, o, t + 0.02 + i * 0.03, { type: 'triangle', from: 2400 + i * 300, to: 2000, peak: 0.03, attack: 0.002, decay: 0.03 });
+  },
+  knife: (c, o, n, t, p) =>
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 5200 * p, to: 3000 * p, q: 4, peak: 0.14, attack: 0.004, decay: 0.08 }),
+  toss: (c, o, n, t, p) =>
+    noiseBurst(c, o, n, t, { type: 'highpass', from: 1800 * p, to: 4200 * p, peak: 0.14, attack: 0.02, decay: 0.06 }),
+  arcane: (c, o, _n, t, p) => {
+    tone(c, o, t, { type: 'sine', from: 700 * p, to: 1400 * p, peak: 0.09, attack: 0.01, decay: 0.16 });
+    tone(c, o, t + 0.02, { type: 'sine', from: 1050 * p, to: 2100 * p, peak: 0.05, attack: 0.01, decay: 0.14 });
+  },
+  arcane_heavy: (c, o, n, t, p) => {
+    [520, 780, 1040].forEach((f, i) =>
+      tone(c, o, t + i * 0.03, { type: 'sine', from: f * p, to: f * p * 1.5, peak: 0.08, attack: 0.01, decay: 0.3 }),
+    );
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 1600, to: 3200, q: 2, peak: 0.12, attack: 0.02, decay: 0.3 });
+  },
+  cape: (c, o, n, t, p) =>
+    noiseBurst(c, o, n, t, { type: 'lowpass', from: 1400 * p, to: 300, peak: 0.35, attack: 0.03, decay: 0.12 }),
+  bats: (c, o, _n, t) => {
+    for (let i = 0; i < 6; i++) {
+      const f = 2600 + ((i * 377) % 900);
+      tone(c, o, t + i * 0.035, { type: 'square', from: f, to: f * 1.3, peak: 0.025, attack: 0.002, decay: 0.03 });
+    }
+  },
+  blood: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'lowpass', from: 900 * p, to: 180, peak: 0.4, attack: 0.02, decay: 0.2 });
+    tone(c, o, t, { type: 'sawtooth', from: 140 * p, to: 70, peak: 0.07, attack: 0.02, decay: 0.2 });
+  },
+  teleport: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'bandpass', from: 400 * p, to: 2800 * p, q: 2, peak: 0.3, attack: 0.05, decay: 0.1 });
+    tone(c, o, t, { type: 'sine', from: 180 * p, to: 720 * p, peak: 0.12, attack: 0.02, decay: 0.14 });
+  },
+  summon: (c, o, _n, t, p) => {
+    [659, 880, 1175].forEach((f, i) =>
+      tone(c, o, t + i * 0.04, { type: 'triangle', from: f * p, to: f * p, peak: 0.06, attack: 0.004, decay: 0.12 }),
+    );
+  },
+  coo: (c, o, _n, t, p) => {
+    tone(c, o, t, { type: 'sine', from: 520 * p, to: 440 * p, peak: 0.08, attack: 0.02, decay: 0.1 });
+    tone(c, o, t + 0.12, { type: 'sine', from: 560 * p, to: 420 * p, peak: 0.07, attack: 0.02, decay: 0.12 });
+  },
+  meow: (c, o, _n, t, p) =>
+    tone(c, o, t, { type: 'triangle', from: 700 * p, to: 1100 * p, peak: 0.07, attack: 0.08, decay: 0.16 }),
+  roar: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'lowpass', from: 700 * p, to: 200, peak: 0.5, attack: 0.05, decay: 0.45 });
+    tone(c, o, t, { type: 'sawtooth', from: 110 * p, to: 70, peak: 0.12, attack: 0.05, decay: 0.4 });
+  },
   go: (c, o, _n, t) => {
     tone(c, o, t, { type: 'square', from: 880, to: 880, peak: 0.09, attack: 0.003, decay: 0.3 });
     tone(c, o, t, { type: 'square', from: 660, to: 660, peak: 0.06, attack: 0.003, decay: 0.3 });

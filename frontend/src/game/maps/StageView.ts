@@ -6,6 +6,8 @@ import { buildFrozenFortressArt } from './frozenFortressArt';
 import { buildWizardTowerArt } from './wizardTowerArt';
 import { buildAncientRuinsArt } from './ancientRuinsArt';
 import { buildVolcanicKeepArt } from './volcanicKeepArt';
+import { buildThroneHallArt } from './throneHallArt';
+import { buildHuntersLibraryArt } from './huntersLibraryArt';
 import { EFFECT_ORIGINS } from '../render/textures';
 import type { EffectManager } from '../effects/EffectManager';
 import { PAL } from '../render/palette';
@@ -18,6 +20,8 @@ const ART_BUILDERS: Record<string, () => StageArt> = {
   wizard_tower: buildWizardTowerArt,
   ancient_ruins: buildAncientRuinsArt,
   volcanic_keep: buildVolcanicKeepArt,
+  throne_hall: buildThroneHallArt,
+  hunters_library: buildHuntersLibraryArt,
 };
 
 const cache = new Map<string, StageArt>();
@@ -112,6 +116,11 @@ export class StageView {
     } else if (this.ambient === 'arcane' && Math.random() < 0.035 * dt) {
       this.fx.burst(cam.scrollX + Math.random() * 640, cam.scrollY + 200 + Math.random() * 160, 1, [PAL.lightning[3], PAL.lightning[2], PAL.lightning[4]], {
         speed: 0.35, gravity: -0.004, life: 170, angle: -Math.PI / 2, spread: 0.6, drag: 0.998,
+      });
+    } else if (this.ambient === 'dust' && Math.random() < 0.03 * dt) {
+      // Dust motes drifting slowly through the candle- and moonlight.
+      this.fx.burst(cam.scrollX + Math.random() * 640, cam.scrollY + 40 + Math.random() * 280, 1, [PAL.gold[3], PAL.sky[6], PAL.ice[3]], {
+        speed: 0.12, gravity: 0.0005, life: 220, drag: 1,
       });
     } else if (this.ambient === 'snow' && Math.random() < 0.09 * dt) {
       this.fx.burst(cam.scrollX + Math.random() * 700 - 30, cam.scrollY - 4, 1, [PAL.white, PAL.ice[4], PAL.ice[3]], {

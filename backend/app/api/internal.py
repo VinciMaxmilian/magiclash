@@ -18,11 +18,11 @@ from app.repositories.supabase import SupabaseError
 from app.schemas.common import StrictModel
 from app.security.auth import gateway
 from app.security.tokens import ReplayGuard, TokenError, verify_signature
+from app.core.game_ids import CharacterId
 
 router = APIRouter(prefix="/internal", tags=["internal"], include_in_schema=False)
 _replay = ReplayGuard()
 
-CharacterId = Literal["knight", "barbarian", "archer", "fire_mage", "ice_mage", "lightning_mage"]
 
 
 class ParticipantResult(StrictModel):

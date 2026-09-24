@@ -3,6 +3,9 @@ import type { ProjectileState, Simulation } from '@magiclash/shared';
 import { EFFECT_ORIGINS } from './textures';
 import { arrowFrameFor } from './projectileSprites';
 
+/** Pre-drawn in 16 directions: the frame follows the velocity, never flipped. */
+const DIRECTIONAL = (sprite: string) => sprite.startsWith('arrow') || sprite === 'dagger';
+
 /** Sprites for live projectiles, synced by uid every render frame. Purely cosmetic. */
 export class ProjectileViews {
   private readonly sprites = new Map<number, Phaser.GameObjects.Sprite>();
@@ -16,7 +19,8 @@ export class ProjectileViews {
       alive.add(p.uid);
       const def = sim.projectileDef(p);
       const exploding = p.exploding > 0 && def.explosion;
-      const key = exploding ? (def.explosion!.w > 44 ? 'fx_explosion_big' : 'fx_explosion') : `proj_${def.sprite}`;
+      const blast = exploding ? def.explosion!.w : 0;
+      const key = exploding ? (blast >= 70 ? 'fx_explosion_huge' : blast > 44 ? 'fx_explosion_big' : 'fx_explosion') : `proj_${def.sprite}`;
       const meta = EFFECT_ORIGINS.get(key);
       if (!meta) continue;
       let s = this.sprites.get(p.uid);
@@ -27,7 +31,7 @@ export class ProjectileViews {
       }
       if (s.texture.key !== key) s.setTexture(key, 0);
       s.setFrame(this.frameFor(p, def.sprite, meta.frames, exploding ? def.explosion!.ticks : def.lifetime, t));
-      const flip = !def.sprite.startsWith('arrow') && def.sprite !== 'axe' && p.facing < 0;
+      const flip = !DIRECTIONAL(def.sprite) && def.sprite !== 'axe' && def.sprite !== 'rune_disc' && p.facing < 0;
       s.setFlipX(flip);
       s.setOrigin(meta.x / s.frame.width, meta.y / s.frame.height);
       s.setPosition(Math.round(p.x), Math.round(p.y));
@@ -43,10 +47,10 @@ export class ProjectileViews {
 
   private frameFor(p: ProjectileState, sprite: string, frames: number, lifetime: number, t: number): number {
     if (p.exploding > 0) return Math.min(frames - 1, Math.floor((1 - p.exploding / lifetime) * frames));
-    if (sprite.startsWith('arrow')) return p.stuck >= 0 ? arrowFrameFor(p.facing, 0.35) : arrowFrameFor(p.vx, p.vy);
+    if (DIRECTIONAL(sprite)) return p.stuck >= 0 ? arrowFrameFor(p.facing, 0.35) : arrowFrameFor(p.vx, p.vy);
     if (sprite === 'axe') return p.stuck >= 0 ? 1 : Math.floor(p.age / 3) % 4;
     // Grounded / attached hazards play once over their lifetime.
-    if (['fire_column', 'ice_spikes', 'thunder_beam', 'sky_spark', 'thunderstrike'].includes(sprite)) {
+    if (['fire_column', 'ice_spikes', 'thunder_beam', 'sky_spark', 'thunderstrike', 'azure_pillar', 'hell_geyser'].includes(sprite)) {
       return Math.min(frames - 1, Math.floor((p.age / lifetime) * frames));
     }
     return Math.floor(t / 4) % frames;

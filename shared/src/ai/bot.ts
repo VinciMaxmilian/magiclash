@@ -113,7 +113,7 @@ export const computeAttackReach = (a: AttackDefinition, c: CharacterDefinition):
     let pvy = -Math.sin(ang) * d.speed;
     for (let t = 0; t < Math.min(d.lifetime, 45); t++) {
       pvy = (pvy + d.gravity) * (d.drag ?? 1);
-      pvx *= d.drag ?? 1;
+      pvx = pvx * (d.drag ?? 1) + (d.accelX ?? 0);
       px += pvx;
       py += pvy;
       if (t % 3 === 0) add(px, py, d.w, d.h);

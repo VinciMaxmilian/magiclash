@@ -91,5 +91,8 @@ export const validateAttack = (a: AttackDefinition): string[] => {
     if (m.frame < 0 || m.frame >= total) errors.push(`movement frame ${m.frame} outside attack`);
   }
   if (a.chain && (a.chain.from > a.chain.to || a.chain.to >= total)) errors.push('chain window invalid');
+  if (a.intangible && (a.intangible.from > a.intangible.to || a.intangible.from < 0 || a.intangible.to >= total)) {
+    errors.push('intangible window invalid');
+  }
   return errors;
 };

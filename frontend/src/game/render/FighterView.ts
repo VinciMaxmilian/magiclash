@@ -121,8 +121,14 @@ export class FighterView {
       this.sprite.clearTint();
     }
 
+    // Teleport: the body is gone while intangible (the crimson mist is drawn by the scene).
+    const w = attack?.intangible;
+    const vanished = !!w && !!f.attack && f.attack.frame >= w.from && f.attack.frame <= w.to;
+    this.shadow.setVisible(alive && f.grounded && !vanished);
+
     let alpha = 1;
-    if (f.state === 'dodge') alpha = 0.55;
+    if (vanished) alpha = 0;
+    else if (f.state === 'dodge') alpha = 0.55;
     else if (f.invuln > 0 && Math.floor(t / 4) % 2 === 0) alpha = 0.45;
     this.sprite.setAlpha(alpha);
   }

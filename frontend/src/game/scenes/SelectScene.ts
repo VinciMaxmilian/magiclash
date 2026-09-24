@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   CHARACTERS,
   CHARACTER_ORDER,
+  SEASONS,
   STAGES,
   STAGE_ORDER,
   type BotDifficulty,
@@ -18,6 +19,9 @@ import type { MatchSetup, SlotSetup } from '../match/setup';
 import { DIFFICULTIES, DIFFICULTY_LABEL } from './labels';
 import { account, displayName } from '../../services/account';
 
+const CARD_W = 42;
+const CARD_H = 44;
+
 const COLOR_LABEL: Record<TeamColor, string> = { blue: 'AZUL', red: 'VERMELHO', green: 'VERDE', yellow: 'AMARELO' };
 const STAGE_BLURB: Record<string, string> = {
   castle_courtyard: 'NEUTRO: PLATAFORMAS SIMÉTRICAS',
@@ -26,6 +30,8 @@ const STAGE_BLURB: Record<string, string> = {
   wizard_tower: 'ESTREITO E VERTICAL',
   ancient_ruins: 'DEGRAU E PAREDE NO MEIO',
   volcanic_keep: 'PEQUENO E AGRESSIVO',
+  throne_hall: 'LARGO, ESTRADO NO MEIO',
+  hunters_library: 'PRATELEIRAS EM ESCADA',
 };
 
 interface Choice {
@@ -97,13 +103,15 @@ export class SelectScene extends Phaser.Scene {
 
     pixelText(this, 320, 8, 'ESCOLHA SEU LUTADOR', { scale: 2, align: 'center', color: PAL.gold[3], depth: 10 });
 
-    // Character cards (3 × 2)
+    // Character cards (4 × 3). Season content carries a small gold "T1" badge.
+    const seasonOf = new Map(SEASONS.flatMap((se) => se.characters.map((ch) => [ch, se.id] as const)));
     this.cards = CHARACTER_ORDER.map((id, i) => {
-      const x = 44 + (i % 3) * 58;
-      const y = 62 + Math.floor(i / 3) * 62;
-      const frame = this.add.image(x, y, ensurePanel(this, 52, 56)).setScrollFactor(0).setDepth(10);
-      const portrait = this.add.image(x, y - 6, `portrait_${id}_blue`).setScale(2).setScrollFactor(0).setDepth(11);
-      pixelText(this, x, y + 16, CHARACTERS[id].name.split(' ').slice(-1)[0], { align: 'center', outline: false, color: PAL.steel[3], depth: 11 });
+      const x = 34 + (i % 4) * 46;
+      const y = 50 + Math.floor(i / 4) * 48;
+      const frame = this.add.image(x, y, ensurePanel(this, CARD_W, CARD_H)).setScrollFactor(0).setDepth(10);
+      const portrait = this.add.image(x, y - 1, `portrait_${id}_blue`).setScale(2).setScrollFactor(0).setDepth(11);
+      const season = seasonOf.get(id);
+      if (season) pixelText(this, x + 17, y - 22, `T${season}`, { align: 'right', color: PAL.gold[3], depth: 12 });
       return { frame, portrait };
     });
 
@@ -217,7 +225,7 @@ export class SelectScene extends Phaser.Scene {
     const color = TEAM_ORDER[c.color];
     this.cards.forEach((card, i) => {
       const sel = i === c.character;
-      card.frame.setTexture(ensurePanel(this, 52, 56, sel ? PAL.gold[3] : undefined)).setAlpha(sel ? 1 : 0.8);
+      card.frame.setTexture(ensurePanel(this, CARD_W, CARD_H, sel ? PAL.gold[3] : undefined)).setAlpha(sel ? 1 : 0.8);
       card.portrait.setTexture(`portrait_${CHARACTER_ORDER[i]}_${sel ? color : 'blue'}`);
       card.frame.setTint(sel ? 0xffffff : 0xb7c2d6);
     });

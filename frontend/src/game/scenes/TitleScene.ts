@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CURRENT_SEASON } from '@magiclash/shared';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { REF_CENTER } from '../maps/castleCourtyardArt';
@@ -53,6 +54,7 @@ export class TitleScene extends Phaser.Scene {
     this.items = [
       { label: () => 'JOGAR (SINGLEPLAYER)', confirm: () => this.startMatch() },
       { label: () => 'JOGAR ONLINE', confirm: () => this.scene.start('Online') },
+      { label: () => `${CURRENT_SEASON.name}: NOVIDADES`, confirm: () => this.scene.start('Season') },
       { label: () => 'RANKING', confirm: () => this.scene.start('Leaderboard') },
       {
         label: () => (account.signedIn ? `PERFIL: ${displayName()}` : `CONTA (VISITANTE: ${displayName()})`),
@@ -65,7 +67,7 @@ export class TitleScene extends Phaser.Scene {
       { label: () => (this.scale.isFullscreen ? 'SAIR DA TELA CHEIA' : 'TELA CHEIA (F)'), confirm: () => this.scale.toggleFullscreen() },
     ];
 
-    this.add.image(320, 206, ensurePanel(this, 272, 138)).setScrollFactor(0).setDepth(10);
+    this.add.image(320, 212, ensurePanel(this, 272, 152)).setScrollFactor(0).setDepth(10);
     this.texts = this.items.map((it, i) =>
       pixelText(this, 200, 146 + i * 14, it.label(), { depth: 11, color: 0xb7c2d6 }),
     );
@@ -75,7 +77,7 @@ export class TitleScene extends Phaser.Scene {
       color: 0x8f5b8c,
       depth: 11,
     });
-    pixelText(this, 634, 348, 'FASE 1 - VERTICAL SLICE', { align: 'right', outline: false, color: 0x5a3f7a, depth: 11 });
+    pixelText(this, 634, 348, `${CURRENT_SEASON.name} - ${CURRENT_SEASON.subtitle}`, { align: 'right', outline: false, color: 0x5a3f7a, depth: 11 });
 
     // Controls panel
     this.controls = this.add.container(0, 0).setDepth(20);

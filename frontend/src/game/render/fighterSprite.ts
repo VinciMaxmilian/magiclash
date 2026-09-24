@@ -22,16 +22,18 @@ export interface Pose extends KnightPose {
   draw?: number;
   /** Hide the weapon for this pose (thrown axe, bare-hand moves). */
   noWeapon?: boolean;
+  /** Whip uncoiled: only the handle is drawn (the lash itself is an effect sprite). */
+  whipOut?: boolean;
 }
 
-export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff';
+export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff' | 'whip' | 'chainwhip' | 'none';
 
 export interface FighterStyle {
   id: string;
-  head: 'greathelm' | 'horned' | 'hood' | 'wizard';
-  torso: 'plate' | 'bare' | 'tunic' | 'robe';
-  arms: 'plate' | 'bare' | 'sleeve' | 'robe';
-  legs: 'plate' | 'fur' | 'pants' | 'robe';
+  head: 'greathelm' | 'horned' | 'hood' | 'wizard' | 'hunter' | 'brawler' | 'vampire' | 'dhampir' | 'summoner';
+  torso: 'plate' | 'bare' | 'tunic' | 'robe' | 'coat' | 'dress';
+  arms: 'plate' | 'bare' | 'sleeve' | 'robe' | 'coat';
+  legs: 'plate' | 'fur' | 'pants' | 'robe' | 'coat' | 'stockings';
   weapon: WeaponKind;
   cape: boolean;
   /** Robe/hat color (mages) and staff orb color. */
@@ -41,6 +43,19 @@ export interface FighterStyle {
   family: 'melee' | 'bow' | 'staff';
   /** Weapon can be thrown: also generate weaponless variants (prefix `u_`). */
   throwable?: boolean;
+  /** Temporada 1 outfits: clothing ramp (coat / dress), hair ramp, pale skin, details. */
+  coat?: Ramp;
+  hair?: Ramp;
+  pale?: boolean;
+  collar?: 'fur' | 'high';
+  /** Color of the coat's front trim (gold / silver). */
+  trim?: number;
+  /** Rows of coat tail hanging over the thighs. */
+  coatTail?: number;
+  /** Long flowing cape (team-colored lining) instead of the knight's short one. */
+  bigCape?: boolean;
+  /** Eye color (glowing eyes for the night creatures). */
+  eye?: number;
 }
 
 const ROBE_FIRE: Ramp = [0x3b2420, 0x5a1a10, 0xb8361e, 0xee6a26];
@@ -48,6 +63,19 @@ const ROBE_ICE: Ramp = [0x1a3552, 0x2f6fa0, 0x5fb4de, 0xa8e4f5];
 const ROBE_BOLT: Ramp = [0x1f1b3a, 0x3b2a7a, 0x6a5ae0, 0xa8a0ff];
 
 const BASE_SIZE = { thigh: 7, shin: 7, upper: 5, fore: 5, torsoH: 10, torsoW: 10, hipDy: 0 };
+
+// Temporada 1 ramps (all from the master palette)
+const COAT_HUNTER: Ramp = [PAL.leather[0], PAL.leather[1], PAL.leather[2], PAL.leather[3]];
+const COAT_BRAWLER: Ramp = [PAL.steel[0], PAL.steel[1], PAL.steel[2], PAL.steel[3]];
+const COAT_VAMPIRE: Ramp = [PAL.ink, PAL.sky[0], PAL.sky[1], PAL.sky[2]];
+const COAT_DHAMPIR: Ramp = [PAL.ink, PAL.stone[0], PAL.stone[1], PAL.stone[2]];
+const DRESS_SUMMONER: Ramp = [PAL.ice[0], PAL.ice[1], PAL.ice[2], PAL.ice[3]];
+const HAIR_DARK: Ramp = [PAL.wood[0], PAL.wood[1], PAL.wood[2], PAL.wood[3]];
+const HAIR_BROWN: Ramp = [PAL.leather[1], PAL.wood[2], PAL.wood[3], PAL.gold[2]];
+const HAIR_BLACK: Ramp = [PAL.ink, PAL.sky[1], PAL.sky[2], PAL.stone[3]];
+const HAIR_SILVER: Ramp = [PAL.stone[2], PAL.stone[4], PAL.steel[3], PAL.steel[4]];
+const HAIR_BLONDE: Ramp = [PAL.gold[1], PAL.gold[2], PAL.gold[3], PAL.sky[6]];
+const PALE: Ramp = [PAL.skin[1], PAL.skin[2], PAL.skin[3], PAL.sky[6]];
 
 export const STYLES: Record<string, FighterStyle> = {
   knight: { id: 'knight', head: 'greathelm', torso: 'plate', arms: 'plate', legs: 'plate', weapon: 'sword', cape: true, size: BASE_SIZE, family: 'melee' },
@@ -62,6 +90,30 @@ export const STYLES: Record<string, FighterStyle> = {
   fire_mage: { id: 'fire_mage', head: 'wizard', torso: 'robe', arms: 'robe', legs: 'robe', weapon: 'staff', cape: false, robe: ROBE_FIRE, orb: PAL.fire, size: { ...BASE_SIZE, torsoW: 9 }, family: 'staff' },
   ice_mage: { id: 'ice_mage', head: 'wizard', torso: 'robe', arms: 'robe', legs: 'robe', weapon: 'staff', cape: false, robe: ROBE_ICE, orb: PAL.ice, size: { ...BASE_SIZE, torsoW: 9 }, family: 'staff' },
   lightning_mage: { id: 'lightning_mage', head: 'wizard', torso: 'robe', arms: 'robe', legs: 'robe', weapon: 'staff', cape: false, robe: ROBE_BOLT, orb: PAL.lightning, size: { ...BASE_SIZE, torsoW: 9 }, family: 'staff' },
+  // ── Temporada 1 ──
+  hunter: {
+    id: 'hunter', head: 'hunter', torso: 'coat', arms: 'coat', legs: 'pants', weapon: 'chainwhip', cape: false,
+    coat: COAT_HUNTER, hair: HAIR_DARK, collar: 'fur', coatTail: 7, size: BASE_SIZE, family: 'melee',
+  },
+  brawler: {
+    id: 'brawler', head: 'brawler', torso: 'coat', arms: 'coat', legs: 'pants', weapon: 'whip', cape: false,
+    coat: COAT_BRAWLER, hair: HAIR_BROWN, coatTail: 4, trim: PAL.steel[4],
+    size: { ...BASE_SIZE, torsoW: 9 }, family: 'melee',
+  },
+  vampire: {
+    id: 'vampire', head: 'vampire', torso: 'coat', arms: 'coat', legs: 'coat', weapon: 'none', cape: false,
+    coat: COAT_VAMPIRE, hair: HAIR_BLACK, pale: true, collar: 'high', trim: PAL.gold[2], coatTail: 9, bigCape: true,
+    eye: PAL.fire[2], size: { thigh: 8, shin: 8, upper: 6, fore: 6, torsoH: 12, torsoW: 11, hipDy: -2 }, family: 'staff',
+  },
+  dhampir: {
+    id: 'dhampir', head: 'dhampir', torso: 'coat', arms: 'coat', legs: 'coat', weapon: 'sword', cape: false,
+    coat: COAT_DHAMPIR, hair: HAIR_SILVER, pale: true, trim: PAL.steel[3], coatTail: 10, eye: PAL.gold[3],
+    size: { thigh: 8, shin: 7, upper: 5, fore: 5, torsoH: 11, torsoW: 9, hipDy: -1 }, family: 'melee',
+  },
+  summoner: {
+    id: 'summoner', head: 'summoner', torso: 'dress', arms: 'coat', legs: 'stockings', weapon: 'none', cape: false,
+    coat: DRESS_SUMMONER, hair: HAIR_BLONDE, size: { thigh: 6, shin: 6, upper: 4, fore: 5, torsoH: 8, torsoW: 8, hipDy: 0 }, family: 'staff',
+  },
 };
 
 const DEFAULT: Required<KnightPose> = {
@@ -116,6 +168,63 @@ const HOOD = [
   '..TTTTT...',
 ];
 
+// Temporada 1 heads. h/H/i/j = hair ramp, s/S = skin, b = beard, k = eye, T/t = team color.
+const HEAD_HUNTER = [
+  '..hhhhh...',
+  '.hhiiihh..',
+  'hhiijiihh.',
+  'hhhsssshh.',
+  'hhsssksh..',
+  'hhssssS...',
+  '.hbsbbss..',
+  '..bbbbb...',
+];
+const HEAD_BRAWLER = [
+  '..hhhhh...',
+  '.hhiijih..',
+  'tTTTTTTTT.',
+  'thhsssss..',
+  '..hsssks..',
+  '..hssssS..',
+  '...sssss..',
+  '...ssss...',
+];
+const HEAD_VAMPIRE = [
+  '...hhhhh...',
+  '..hiiiiih..',
+  '.hijjiiihh.',
+  '.hiissssh..',
+  '.hhsssks...',
+  '.hhssssS...',
+  '.hhhbsss...',
+  '.hhhbbbb...',
+  '.hih.bb....',
+  '.hh........',
+];
+const HEAD_DHAMPIR = [
+  '..hhhhhh...',
+  '.hiiijjih..',
+  'hiijjiiih..',
+  'hiiissss...',
+  'hiisssks...',
+  'hiissssS...',
+  'hiiisssh...',
+  'hii..ss....',
+  'hii........',
+  'hi.........',
+  '.h.........',
+];
+const HEAD_SUMMONER = [
+  'TT......',
+  'TtThhhh.',
+  '.Thiijhh',
+  '.hhiisss',
+  '.hhssskS',
+  '.hhsssss',
+  '.hh.sss.',
+  '.h......',
+];
+
 export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): PixelBuffer => {
   const p = { ...DEFAULT, ...pose };
   const z = style.size;
@@ -124,9 +233,11 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
   const T = TEAM_RAMPS[team];
   const L = PAL.leather;
   const G = PAL.gold;
-  const K = PAL.skin;
+  const K = style.pale ? PALE : PAL.skin;
   const W = PAL.wood;
   const R = style.robe ?? S;
+  const C = style.coat ?? L;
+  const Hr = style.hair ?? HAIR_DARK;
   const ax = ANCHOR_X;
   const ay = ANCHOR_Y;
 
@@ -162,6 +273,8 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
 
   const legColors = (front: boolean): [number, number, number, number] => {
     switch (style.legs) {
+      case 'coat': return front ? [C[1], C[2], C[0], PAL.ink] : [C[0], C[1], C[0], PAL.ink];
+      case 'stockings': return front ? [S[3], S[4], S[1], L[1]] : [S[2], S[3], S[1], L[0]];
       case 'fur': return front ? [L[1], L[2], L[0], W[1]] : [L[0], L[1], L[0], W[0]];
       case 'pants': return front ? [W[1], W[2], W[0], L[1]] : [W[0], W[1], W[0], L[0]];
       case 'robe': return front ? [L[0], L[1], PAL.ink, L[1]] : [L[0], L[0], PAL.ink, L[0]];
@@ -173,6 +286,7 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
       case 'bare': return front ? [K[2], K[3], K[0], L[1]] : [K[1], K[1], K[0], L[0]];
       case 'sleeve': return front ? [L[1], L[2], L[0], K[2]] : [L[0], L[1], L[0], K[1]];
       case 'robe': return front ? [R[2], R[3], R[0], K[2]] : [R[1], R[1], R[0], K[1]];
+      case 'coat': return front ? [C[2], C[3], C[0], K[2]] : [C[1], C[1], C[0], K[1]];
       default: return front ? [S[1], S[2], S[0], L[1]] : [S[0], S[1], S[0], L[0]];
     }
   };
@@ -185,6 +299,30 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
   };
 
   // 0. Things behind the body: cape, quiver
+  if (style.bigCape) {
+    // Long cape from the shoulders to the ankles, flaring back; team-colored lining on the edge.
+    const rows = Math.round(ay - top[1]) - 1;
+    for (let r = 0; r < rows; r++) {
+      const y = Math.round(top[1] - 1 + r);
+      const t = r / (rows - 1);
+      const right = Math.round(top[0] + 1 + (hip[0] - 2 - top[0]) * t - p.lean * 0.6 * t);
+      const w = 5 + Math.floor(t * 9);
+      buf.rect(right - w, y, w + 1, 1, C[1]);
+      buf.rect(right - w, y, 2, 1, T[1]);
+      buf.set(right - w, y, T[0]);
+      if (r % 5 === 2) buf.set(right - w + 4, y, C[0]); // folds
+      if (r === rows - 1) buf.rect(right - w, y, w + 1, 1, T[0]);
+    }
+  }
+  if (style.collar === 'high') {
+    // Standing collar behind the head.
+    for (let r = 0; r < 7; r++) {
+      const y = Math.round(top[1] - 1 - r);
+      const w = 4 + Math.floor(r / 2);
+      buf.rect(Math.round(top[0]) - 3 - w, y, w, 1, r > 4 ? T[1] : C[1]);
+      buf.set(Math.round(top[0]) - 3 - w, y, T[0]);
+    }
+  }
   if (style.cape) {
     for (let r = 0; r < 14; r++) {
       const y = Math.round(top[1] + 1 + r);
@@ -219,6 +357,19 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
     const [c, hi, , bootC] = legColors(false);
     limb([hip[0] - 2, hip[1]], [ax + p.bFoot[0], ay + p.bFoot[1]], z.thigh, z.shin, -1, 4, c, hi);
     boot([ax + p.bFoot[0], ay + p.bFoot[1]], bootC, bootC);
+  }
+
+  // 2b. Coat tail over the thighs (behind the front leg).
+  if (style.coatTail) {
+    for (let r = 0; r < style.coatTail; r++) {
+      const w = z.torsoW + Math.floor(r * 0.5);
+      const x0 = Math.round(hip[0]) - Math.floor(w / 2) - Math.floor(r * 0.3);
+      const y = Math.round(hip[1]) + r;
+      buf.rect(x0, y, w, 1, C[1]);
+      buf.set(x0, y, C[0]);
+      buf.set(x0 + w - 1, y, C[2]);
+      if (style.trim !== undefined && r === style.coatTail - 1) buf.rect(x0, y, w, 1, style.trim);
+    }
   }
 
   // 3. Torso
@@ -268,6 +419,34 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
           buf.set(cx, y, G[2]);
         }
         break;
+      case 'coat':
+        buf.rect(x0, y, w, 1, C[2]);
+        buf.set(x0, y, C[1]);
+        buf.set(x0 + w - 1, y, C[3]);
+        // open front showing the shirt, with trim along the edge
+        if (r >= 1 && r < z.torsoH - 1) {
+          buf.set(cx + 1, y, style.id === 'vampire' ? PAL.fire[1] : S[3]);
+          buf.set(cx + 2, y, style.trim ?? C[3]);
+        }
+        if (r < 2 && style.collar === 'fur') buf.rect(x0 - 1, y, w + 2, 1, r ? PAL.stone[3] : PAL.stone[4]);
+        if (belt) {
+          buf.rect(x0, y, w, 1, T[1]);
+          buf.set(cx + 1, y, G[3]);
+        }
+        break;
+      case 'dress':
+        if (r < 4) {
+          buf.rect(x0, y, w, 1, S[4]); // blouse
+          buf.set(x0 + w - 1, y, PAL.white);
+          buf.set(x0, y, S[3]);
+        } else {
+          buf.rect(x0, y, w, 1, C[2]);
+          buf.set(x0, y, C[1]);
+          buf.set(x0 + w - 1, y, C[3]);
+        }
+        if (r === 1) buf.set(cx + 1, y, T[2]); // neck bow
+        if (belt) buf.rect(x0, y, w, 1, T[1]);
+        break;
       case 'robe':
         buf.rect(x0, y, w, 1, R[2]);
         buf.set(x0, y, R[1]);
@@ -297,6 +476,19 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
       buf.set(Math.round(knee[0]) + 1, Math.round(knee[1]) - 1, S[4]);
     }
     boot([ax + p.fFoot[0], ay + p.fFoot[1]], bootC, style.legs === 'plate' ? L[2] : bootC);
+  }
+
+  // 4b. Short dress skirt (summoner)
+  if (style.torso === 'dress') {
+    for (let r = 0; r < 6; r++) {
+      const w = z.torsoW + 2 + r;
+      const x0 = Math.round(hip[0]) - Math.floor(w / 2);
+      const y = Math.round(hip[1]) + r;
+      buf.rect(x0, y, w, 1, C[2]);
+      buf.set(x0, y, C[1]);
+      buf.set(x0 + w - 1, y, C[3]);
+      if (r === 5) buf.rect(x0, y, w, 1, PAL.white);
+    }
   }
 
   // 4b. Robe skirt over the legs
@@ -333,6 +525,18 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
     case 'hood':
       buf.stamp(hx - 5, hy - 9, HOOD, { T: T[1], t: T[2], u: T[3], D: T[0], s: K[2], k: PAL.ink });
       break;
+    case 'hunter':
+    case 'brawler':
+    case 'vampire':
+    case 'dhampir':
+    case 'summoner': {
+      const map = { hunter: HEAD_HUNTER, brawler: HEAD_BRAWLER, vampire: HEAD_VAMPIRE, dhampir: HEAD_DHAMPIR, summoner: HEAD_SUMMONER }[style.head];
+      const beard = style.head === 'vampire' ? PAL.ink : style.head === 'hunter' ? Hr[0] : K[1];
+      buf.stamp(hx - 4, hy - map.length + 1, map, {
+        h: Hr[1], i: Hr[2], j: Hr[3], s: K[2], S: K[3], b: beard, k: style.eye ?? PAL.ink, T: T[1], t: T[2],
+      });
+      break;
+    }
     case 'wizard': {
       // face + beard
       buf.rect(hx - 3, hy - 7, 7, 6, K[2]);
@@ -360,7 +564,7 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
   }
 
   // 6. Weapon
-  if (hasWeapon) drawWeapon(buf, style, fHand, wd, perp, stringPt, drawAmt);
+  if (hasWeapon) drawWeapon(buf, style, fHand, wd, perp, stringPt, drawAmt, p.whipOut);
 
   // 7. Front arm on top
   {
@@ -389,6 +593,7 @@ const drawWeapon = (
   perp: V2,
   stringPt: V2,
   draw: number,
+  whipOut = false,
 ) => {
   const S = PAL.steel;
   const G = PAL.gold;
@@ -396,6 +601,24 @@ const drawWeapon = (
   const L = PAL.leather;
   const at = (t: number, o = 0): V2 => [h[0] + d[0] * t + perp[0] * o, h[1] + d[1] * t + perp[1] * o];
   switch (style.weapon) {
+    case 'none':
+      break;
+    case 'whip':
+    case 'chainwhip': {
+      const chain = style.weapon === 'chainwhip';
+      // handle
+      buf.line(h[0] - d[0] * 2, h[1] - d[1] * 2, ...at(4), L[1], 2);
+      buf.set(...at(4), chain ? S[3] : L[2]);
+      if (whipOut) break;
+      // coiled lash hanging from the hand
+      for (let a = 0; a < Math.PI * 2; a += 0.3) {
+        const x = h[0] - 1 + Math.cos(a) * 3;
+        const y = h[1] + 5 + Math.sin(a) * 3.5;
+        buf.set(x, y, chain ? (Math.floor(a * 3) % 2 ? S[3] : S[1]) : Math.floor(a * 3) % 2 ? L[2] : L[1]);
+      }
+      buf.line(...at(4), h[0] + 1, h[1] + 3, chain ? S[2] : L[2], 1);
+      break;
+    }
     case 'sword': {
       const [bx, by] = at(2);
       const [tx, ty] = at(19);
@@ -638,6 +861,83 @@ export const ATTACK_ANIMS: Record<string, AttackAnim> = {
     [{ fArm: [-60, 0.7], sword: -100, ...TUCK }],
     [{ fArm: [0, 1], sword: -20, bArm: [30, 0.9], ...TUCK }],
     [{ fArm: [20, 0.8], sword: -40, ...TUCK }],
+  ),
+  // ── Temporada 1 ──
+  whip_lash: A(
+    [{ fArm: [-120, 0.8], sword: -150, lean: -2, whipOut: true }],
+    [{ fArm: [0, 1], sword: 0, lean: 3, fFoot: [7, -2], whipOut: true }],
+    [{ fArm: [20, 0.9], sword: 20, lean: 1, whipOut: true }],
+  ),
+  whip_up: A(
+    [{ fArm: [100, 0.7], sword: 120, lean: -1, whipOut: true }],
+    [{ fArm: [-45, 1], sword: -45, lean: 1, whipOut: true }],
+    [{ fArm: [-30, 0.9], sword: -30, whipOut: true }],
+  ),
+  whip_low: A(
+    [{ hip: [0, -10], fArm: [-100, 0.7], sword: -120, fFoot: [6, -2], bFoot: [-7, -2], whipOut: true }],
+    [{ hip: [0, -8], fArm: [20, 1], sword: 20, lean: 3, fFoot: [9, -2], bFoot: [-9, -2], whipOut: true }],
+    [{ hip: [0, -9], fArm: [40, 0.9], sword: 40, fFoot: [8, -2], bFoot: [-8, -2], whipOut: true }],
+  ),
+  whip_heavy: A(
+    [
+      { fArm: [-140, 0.9], sword: -160, lean: -2, hip: [-1, -13], whipOut: true },
+      { fArm: [-160, 0.95], sword: -175, lean: -3, hip: [-1, -13], fFoot: [6, -2], bFoot: [-7, -2], whipOut: true },
+    ],
+    [{ fArm: [-5, 1], sword: -5, lean: 4, hip: [2, -12], fFoot: [9, -2], bFoot: [-8, -2], whipOut: true }],
+    [{ fArm: [20, 0.9], sword: 25, lean: 2, fFoot: [8, -2], whipOut: true }],
+  ),
+  whip_spin: A(
+    [{ fArm: [-90, 0.9], sword: -90, hip: [0, -12], whipOut: true }],
+    [
+      { fArm: [-60, 1], sword: -60, hip: [0, -12], whipOut: true },
+      { fArm: [-120, 1], sword: -120, hip: [0, -12], lean: -1, whipOut: true },
+    ],
+    [{ fArm: [30, 0.8], sword: 40, whipOut: true }],
+  ),
+  air_whip: A(
+    [{ ...TUCK, fArm: [-120, 0.8], sword: -150, whipOut: true }],
+    [{ ...TUCK, fArm: [0, 1], sword: 0, lean: 2, whipOut: true }],
+    [{ ...TUCK, fArm: [20, 0.9], sword: 20, whipOut: true }],
+  ),
+  air_whip_up: A(
+    [{ ...TUCK, fArm: [60, 0.8], sword: 80, whipOut: true }],
+    [{ ...TUCK, fArm: [-75, 1], sword: -80, whipOut: true }],
+    [{ ...TUCK, fArm: [-50, 0.9], sword: -50, whipOut: true }],
+  ),
+  air_whip_down: A(
+    [{ ...TUCK, fArm: [-100, 0.8], sword: -120, whipOut: true }],
+    [{ ...TUCK, fArm: [45, 1], sword: 45, lean: 2, whipOut: true }],
+    [{ ...TUCK, fArm: [60, 0.9], sword: 60, whipOut: true }],
+  ),
+  toss: A(
+    [{ bArm: [-150, 0.9], fArm: [60, 0.7], lean: -2, fFoot: [6, -2] }],
+    [{ bArm: [0, 1], fArm: [70, 0.6], lean: 3, fFoot: [8, -2], bFoot: [-7, -2] }],
+    [{ bArm: [30, 0.8], fArm: [50, 0.7], lean: 1 }],
+  ),
+  cape_swipe: A(
+    [{ fArm: [-110, 0.8], bArm: [-60, 0.7], lean: -2 }],
+    [{ fArm: [10, 1], bArm: [60, 0.9], lean: 4, fFoot: [8, -2] }],
+    [{ fArm: [30, 0.9], bArm: [80, 0.8], lean: 2 }],
+  ),
+  cape_open: A(
+    [{ fArm: [-30, 0.8], bArm: [-130, 0.8], hip: [0, -12] }],
+    [{ fArm: [-20, 1], bArm: [-160, 1], lean: -1, hip: [0, -15] }],
+    [{ fArm: [0, 0.9], bArm: [-120, 0.9], hip: [0, -13] }],
+  ),
+  claw_low: A(
+    [{ hip: [0, -10], fArm: [-40, 0.7], lean: -1 }],
+    [{ hip: [0, -8], fArm: [50, 1], lean: 4, fFoot: [9, -2], bFoot: [-9, -2] }],
+    [{ hip: [0, -9], fArm: [60, 0.9], lean: 2 }],
+  ),
+  phantom_step: A(
+    [{ hip: [0, -10], lean: 4, fArm: [150, 0.8], sword: 160, fFoot: [6, -2], bFoot: [-8, -2] }],
+    [{ fArm: [0, 1], sword: 5, lean: 4, fFoot: [9, -2], bFoot: [-8, -2] }],
+    [{ fArm: [30, 0.9], sword: 45, lean: 2 }],
+  ),
+  phantom_rise: A(
+    [{ hip: [0, -10], fArm: [70, 0.8], sword: 80 }],
+    [{ hip: [0, -14], fArm: [-90, 1], sword: -90, bArm: [-100, 0.8], ...TUCK }],
+    [{ fArm: [-60, 0.9], sword: -60, ...TUCK }],
   ),
   air_cast_up: A(
     [{ fArm: [40, 0.8], sword: -40, ...TUCK }],

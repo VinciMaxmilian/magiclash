@@ -92,7 +92,7 @@ it.skipIf(!DIR)('all fighters', async () => {
   const teams = ['blue', 'red', 'green', 'yellow', 'blue', 'red'] as const;
   rows.forEach((r, ri) => {
     r.chosen.slice(0, cols).forEach((f, i) => {
-      const k = drawFighter(f.pose, STYLES[r.id], teams[ri]);
+      const k = drawFighter(f.pose, STYLES[r.id], teams[ri % teams.length]);
       const crop = new PixelBuffer(48, 48);
       for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) if (k.alphaAt(x + 8, y + 12)) crop.set(x, y, k.colorAt(x + 8, y + 12));
       sheet.blit(crop, i * 48, ri * 48);
@@ -111,6 +111,8 @@ it.skipIf(!DIR)('every stage at the reference view', async () => {
     wizard_tower: (await import('../src/game/maps/wizardTowerArt')).buildWizardTowerArt,
     ancient_ruins: (await import('../src/game/maps/ancientRuinsArt')).buildAncientRuinsArt,
     volcanic_keep: (await import('../src/game/maps/volcanicKeepArt')).buildVolcanicKeepArt,
+    throne_hall: (await import('../src/game/maps/throneHallArt')).buildThroneHallArt,
+    hunters_library: (await import('../src/game/maps/huntersLibraryArt')).buildHuntersLibraryArt,
   } as const;
   for (const id of STAGE_ORDER) {
     const art = builders[id]();

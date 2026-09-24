@@ -20,6 +20,8 @@ import { FighterView } from '../render/FighterView';
 import { ProjectileViews } from '../render/ProjectileView';
 import { EffectManager } from '../effects/EffectManager';
 import { SLASHES } from '../render/effectSprites';
+import { BLOOD, DARK, HELL } from '../render/season1Sprites';
+import { EFFECT_ORIGINS } from '../render/textures';
 import { PAL, TEAM_RAMPS, type TeamColor } from '../render/palette';
 import { ensurePanel } from '../render/textures';
 import { publicAvatarUrl } from '../render/avatars';
@@ -53,20 +55,45 @@ interface NetSession {
   join: JoinInfo;
 }
 
-type Element = 'fire' | 'ice' | 'lightning' | 'steel';
+type Element = 'fire' | 'ice' | 'lightning' | 'steel' | 'arcane' | 'blood' | 'dark' | 'feather';
 const ELEMENT_RAMP: Record<Element, readonly number[]> = {
   fire: PAL.fire,
   ice: PAL.ice,
   lightning: PAL.lightning,
   steel: PAL.steel,
+  arcane: PAL.ice,
+  blood: BLOOD,
+  dark: DARK,
+  feather: [PAL.steel[2], PAL.steel[3], PAL.steel[4], PAL.white, PAL.white],
 };
-const CHARACTER_ELEMENT: Record<string, Element> = { fire_mage: 'fire', ice_mage: 'ice', lightning_mage: 'lightning' };
+const CHARACTER_ELEMENT: Record<string, Element> = {
+  fire_mage: 'fire',
+  ice_mage: 'ice',
+  lightning_mage: 'lightning',
+  vampire: 'dark',
+  dhampir: 'blood',
+};
 
 const elementOfEffect = (effect: string, characterId: string): Element => {
   if (effect.startsWith('fire')) return 'fire';
   if (effect.startsWith('frost')) return 'ice';
   if (effect.startsWith('shock')) return 'lightning';
+  if (effect.startsWith('arcane')) return 'arcane';
+  if (effect.startsWith('blood') || effect === 'teleport') return 'blood';
+  if (effect.startsWith('dark') || effect.startsWith('bat')) return 'dark';
+  if (effect.startsWith('feather')) return 'feather';
   return CHARACTER_ELEMENT[characterId] ?? 'steel';
+};
+
+/** Projectile sprite → trail colors (null = no trail). */
+const trailRamp = (sprite: string): readonly number[] | null => {
+  if (sprite.startsWith('hell') || sprite.startsWith('inferno')) return HELL;
+  if (sprite.includes('fire') || sprite === 'phoenix') return PAL.fire;
+  if (sprite.startsWith('azure') || sprite === 'rune_disc' || sprite === 'dragon' || sprite.includes('ice')) return PAL.ice;
+  if (sprite.startsWith('crimson')) return BLOOD;
+  if (sprite === 'dove') return ELEMENT_RAMP.feather;
+  if (sprite.includes('ball') || sprite.includes('spark')) return PAL.lightning;
+  return null;
 };
 
 const MAX_STEPS_PER_FRAME = 5;
@@ -113,6 +140,9 @@ export class MatchScene extends Phaser.Scene {
   private corr: { x: number; y: number }[] = [];
   private inputAcc = 0;
   private pingText: Phaser.GameObjects.BitmapText | null = null;
+  /** Full-screen white flash (KOs), in the three alpha steps of the art bible. */
+  private flash!: Phaser.GameObjects.Rectangle;
+  private flashTicks = 0;
 
   constructor() {
     super('Match');
@@ -189,6 +219,8 @@ export class MatchScene extends Phaser.Scene {
     );
     this.createIndicators();
     this.createPauseMenu();
+    this.flash = this.add.rectangle(320, 180, 640, 360, PAL.white, 0).setScrollFactor(0).setDepth(950);
+    this.flashTicks = 0;
 
     const cam = this.cameras.main;
     cam.setRoundPixels(true);
@@ -389,6 +421,18 @@ export class MatchScene extends Phaser.Scene {
           this.swingShown[i] = { id: atk.id, start };
           this.onActiveStart(i, atk);
         }
+        // Teleport: crimson mist where the fighter vanishes and where it reappears.
+        const w = atk.intangible;
+        if (w && (f.attack.frame === w.from || f.attack.frame === w.to + 1)) {
+          this.fx.spawn('fx_mist', f.x, f.y, { frameTicks: 3, depth: 24 });
+          this.fx.burst(f.x, f.y - 18, 10, [BLOOD[1], BLOOD[2], BLOOD[3]], { speed: 1.6, life: 22, gravity: -0.03, spread: Math.PI * 2 });
+          if (f.attack.frame === w.from) this.play('teleport');
+        }
+        // Charging: pulsing glow ring every few ticks.
+        if (atk.charge && f.attack.charge > 0 && f.attack.frame === atk.charge.frame && f.attack.charge % 18 === 1) {
+          const ramp = el === 'steel' ? PAL.gold : ELEMENT_RAMP[el];
+          this.fx.spawn('fx_burst', f.x + f.facing * 6, f.y - 22, { frameTicks: 2, tint: ramp[3], alpha: 0.66 });
+        }
         // Charging: particles gathering toward the fighter.
         if (atk.charge && f.attack.charge > 0 && f.attack.frame === atk.charge.frame && tick % 3 === 0) {
           const a = Math.random() * Math.PI * 2;
@@ -401,6 +445,7 @@ export class MatchScene extends Phaser.Scene {
         if (atk.effect.endsWith('_trail') && f.attack.frame >= atk.startup && tick % 2 === 0) {
           const ramp = ELEMENT_RAMP[el];
           this.fx.burst(f.x, f.y - 4, 2, [ramp[2], ramp[3], ramp[4] ?? ramp[3]], { speed: 0.8, angle: Math.PI / 2, spread: 1.2, life: 16, gravity: 0.05 });
+          if (atk.effect === 'bat_trail' && tick % 6 === 0) this.spawnBat(f.x, f.y - 20);
         }
       }
       // Chilled fighters shed frost.
@@ -424,10 +469,25 @@ export class MatchScene extends Phaser.Scene {
         const def = this.sim.projectileDef(p);
         if (def.attached || def.grounded) continue;
         const sp = def.sprite;
-        const ramp = sp.includes('fire') ? PAL.fire : sp.includes('ice') ? PAL.ice : sp.includes('ball') || sp.includes('spark') ? PAL.lightning : null;
-        if (ramp) this.fx.burst(p.x, p.y, 1, [ramp[2], ramp[3]], { speed: 0.3, life: 12, gravity: -0.02 });
+        const ramp = trailRamp(sp);
+        if (ramp) this.fx.burst(p.x, p.y, sp === 'inferno_orb' || sp === 'dragon' ? 2 : 1, [ramp[2], ramp[3]], { speed: 0.3, life: 12, gravity: -0.02 });
       }
     }
+  }
+
+  /** A bat flying up and away (vampire ascent). Moves via the effect's follow hook. */
+  private spawnBat(x: number, y: number) {
+    const born = this.renderTick;
+    const vx = (Math.random() - 0.5) * 2.4;
+    const vy = -0.8 - Math.random() * 0.8;
+    this.fx.spawn('fx_bat', x, y, {
+      frameTicks: 3,
+      depth: 24,
+      follow: () => {
+        const age = this.renderTick - born;
+        return { x: x + vx * age, y: y + vy * age + Math.sin(age / 3) * 2, flip: vx < 0 };
+      },
+    });
   }
 
   private play(id: string, pitch = 1) {
@@ -443,9 +503,20 @@ export class MatchScene extends Phaser.Scene {
     const el = elementOfEffect(atk.effect, f.characterId);
     const tint = el === 'steel' ? undefined : ELEMENT_RAMP[el][3];
     const effect = atk.effect;
-    const slash = SLASHES[effect];
-    if (slash) {
-      this.fx.spawn(`fx_${effect}`, f.x, f.y, { flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 2, tint });
+    const darkSlash = effect === 'dark_slash' ? 'slash_wide' : effect === 'dark_low' ? 'slash_low' : effect === 'teleport' ? (atk.direction === 'up' ? 'slash_up' : 'slash_wide') : null;
+    const slashId = SLASHES[effect] ? effect : darkSlash;
+    const slash = slashId ? SLASHES[slashId] : undefined;
+    if (effect.startsWith('whip_')) {
+      const key = `fx_whip_${f.characterId}_${effect.slice(5)}`;
+      if (EFFECT_ORIGINS.has(key)) this.fx.spawn(key, f.x, f.y, { flip: f.facing < 0, follow, frameTicks: effect === 'whip_spin' ? 3 : 2, depth: 24 });
+      if (effect === 'whip_heavy' || effect === 'whip_spin') this.fx.shake(2, 6);
+    } else if (slash && slashId) {
+      this.fx.spawn(`fx_${slashId}`, f.x, f.y, { flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 2, tint });
+      // Afterglow: a softer, slower copy of the arc gives the swing a smear.
+      this.fx.spawn(`fx_${slashId}`, f.x, f.y, {
+        flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 3, alpha: 0.33, depth: 24,
+        tint: tint ?? PAL.steel[3],
+      });
     } else if (effect === 'fire_arc' || effect === 'frost_arc') {
       const d = SLASHES.slash_up;
       this.fx.spawn('fx_slash_up', f.x, f.y, { flip: f.facing < 0, follow, dx: d.ox, dy: d.oy, frameTicks: 2, tint });
@@ -482,6 +553,9 @@ export class MatchScene extends Phaser.Scene {
     const pdef = this.sim.projectileDefsOf(attacker).get(projId);
     if (pdef) {
       const h = pdef.hitEffect;
+      if (h === 'arcane') return { key: 'fx_spark', element: 'arcane' };
+      if (h === 'blood') return { key: 'fx_blood', element: 'blood' };
+      if (h === 'feather') return { key: 'fx_feather', element: 'feather' };
       if (h === 'explosion') return { key: 'fx_spark_big', element: 'fire' };
       if (h === 'frost') return { key: 'fx_frost', element: 'ice' };
       if (h === 'shock') return { key: 'fx_shock', element: 'lightning' };
@@ -491,6 +565,7 @@ export class MatchScene extends Phaser.Scene {
     const el = elementOfEffect(atk?.effect ?? '', attacker.characterId);
     if (el === 'ice') return { key: 'fx_frost', element: el };
     if (el === 'lightning') return { key: 'fx_shock', element: el };
+    if (el === 'blood') return { key: 'fx_blood', element: el };
     return { key: e.damage >= 10 || e.launch >= 9 ? 'fx_spark_big' : 'fx_spark', element: el };
   }
 
@@ -502,6 +577,8 @@ export class MatchScene extends Phaser.Scene {
         const { key, element } = this.hitEffectFor(e);
         const ramp = element === 'steel' ? PAL.fire : ELEMENT_RAMP[element];
         this.fx.spawn(key, e.x, e.y, { frameTicks: 2, depth: 26 });
+        // Impact flash behind the spark: bigger and brighter the harder the hit.
+        this.fx.spawn(big ? 'fx_impact_big' : 'fx_impact', e.x, e.y, { frameTicks: 2, depth: 25, alpha: big ? 1 : 0.66, tint: ramp[4] ?? ramp[3] });
         if (key !== 'fx_spark' && key !== 'fx_spark_big') {
           this.fx.spawn(big ? 'fx_spark_big' : 'fx_spark', e.x, e.y, { frameTicks: 2, depth: 26, tint: ramp[3] });
         }
@@ -517,6 +594,8 @@ export class MatchScene extends Phaser.Scene {
         this.play(big ? 'hit_heavy' : 'hit_light', big ? 1 : 1.1);
         if (element === 'ice') this.play('ice');
         if (element === 'lightning') this.play('zap');
+        if (element === 'arcane') this.play('arcane');
+        if (element === 'blood') this.play('blood', 1.2);
         if (fighters[e.target].grounded) this.fx.spawn('fx_dust', fighters[e.target].x, fighters[e.target].y, { frameTicks: 3 });
         break;
       }
@@ -533,11 +612,19 @@ export class MatchScene extends Phaser.Scene {
           this.play('thud');
         }
         break;
-      case 'explosion':
-        this.fx.burst(e.x, e.y, 16, [PAL.fire[2], PAL.fire[3], PAL.fire[4]], { speed: 3, life: 20, gravity: -0.03 });
-        this.fx.shake(4, 12);
-        this.play('explosion');
+      case 'explosion': {
+        const pr = this.sim.state.projectiles.find((p) => p.uid === e.uid);
+        const size = pr ? (this.sim.projectileDef(pr).explosion?.w ?? 36) : 36;
+        const k = size / 36;
+        this.fx.burst(e.x, e.y, Math.round(14 * k), [PAL.fire[2], PAL.fire[3], PAL.fire[4]], { speed: 3 * Math.sqrt(k), life: 20, gravity: -0.03, size: k > 1.5 ? 2 : 1 });
+        this.fx.spawn('fx_burst', e.x, e.y, { frameTicks: 2, tint: PAL.fire[3], depth: 21 });
+        for (let i = 0; i < Math.min(4, Math.round(2 * k)); i++) {
+          this.fx.spawn('fx_smoke', e.x + (Math.random() - 0.5) * size * 0.6, e.y - size * 0.2, { frameTicks: 5, depth: 19, alpha: 0.66 });
+        }
+        this.fx.shake(Math.min(6, 3 + k * 1.5), 12 + Math.round(k * 4));
+        this.play('explosion', k > 1.5 ? 0.8 : 1);
         break;
+      }
       case 'weapon_back': {
         const f = fighters[e.fighter];
         this.fx.spawn('fx_ring', f.x, f.y - 20, { frameTicks: 3 });
@@ -568,7 +655,11 @@ export class MatchScene extends Phaser.Scene {
           this.fx.spawn('fx_dust', f.x, f.y, { frameTicks: 3 });
           this.play('land', 0.9 + Math.min(0.3, e.speed / 20));
         }
-        if (e.speed > 7) this.fx.shake(2, 6);
+        if (e.speed > 7) {
+          this.fx.shake(2, 6);
+          this.fx.spawn('fx_dust', f.x - 8, f.y, { frameTicks: 3, flip: true });
+          this.fx.spawn('fx_dust', f.x + 8, f.y, { frameTicks: 3 });
+        }
         break;
       }
       case 'bounce':
@@ -588,6 +679,9 @@ export class MatchScene extends Phaser.Scene {
         this.fx.burst(cx, cy, 40, [team[3], team[2], PAL.white, PAL.fire[4]], {
           speed: 5, angle: toCenter, spread: 1.2, life: 34, gravity: 0, size: 2, drag: 0.92,
         });
+        this.fx.spawn('fx_shockwave', cx, cy, { frameTicks: 3, tint: team[3], depth: 27 });
+        this.fx.spawn('fx_impact_big', cx, cy, { frameTicks: 2, depth: 27 });
+        this.flashTicks = 6;
         this.fx.shake(6, 24);
         this.play('ko');
         const byHuman = e.by >= 0 && e.by === this.human;
@@ -639,6 +733,10 @@ export class MatchScene extends Phaser.Scene {
     });
     this.projectiles.update(this.sim, t);
     this.fx.update(dtTicks);
+    if (this.flashTicks > 0) {
+      this.flashTicks = Math.max(0, this.flashTicks - dtTicks);
+      this.flash.setAlpha(this.flashTicks > 4 ? 0.33 : this.flashTicks > 2 ? 0.2 : this.flashTicks > 0 ? 0.1 : 0);
+    }
     this.stageView.update(dtTicks);
     this.updateCamera(dtTicks);
     this.updateIndicators();

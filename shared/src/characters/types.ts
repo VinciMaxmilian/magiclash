@@ -8,7 +8,17 @@ import type { Rect } from '../core/math';
  * Rects are relative to the fighter's feet anchor while FACING RIGHT (y negative = up).
  */
 
-export type CharacterClass = 'knight' | 'barbarian' | 'archer' | 'mage';
+export type CharacterClass =
+  | 'knight'
+  | 'barbarian'
+  | 'archer'
+  | 'mage'
+  // Temporada 1
+  | 'hunter'
+  | 'fighter'
+  | 'vampire'
+  | 'dhampir'
+  | 'summoner';
 
 export type AttackSlot =
   | 'neutral_light'
@@ -95,6 +105,8 @@ export interface ProjectileDefinition {
   gravity: number;
   /** Per-tick velocity multiplier. Default 1. */
   drag?: number;
+  /** Horizontal acceleration along the throw direction each tick (negative = boomerang back). */
+  accelX?: number;
   lifetime: number;
   damage: number;
   knockback: KnockbackDefinition;
@@ -180,6 +192,8 @@ export interface AttackDefinition {
   hitstunMultiplier?: number;
   status?: StatusEffect;
   projectiles?: ProjectileSpawn[];
+  /** Attack frames (inclusive) during which the fighter can't be hit (teleports). */
+  intangible?: { from: number; to: number };
   /** Hold the button to charge (archer / mages). */
   charge?: ChargeDefinition;
   /** Attack used instead while the fighter's weapon is out (thrown). */

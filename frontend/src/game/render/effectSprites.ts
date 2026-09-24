@@ -97,7 +97,7 @@ export const streakFrames = (vertical: boolean, length: number): EffectSheet => 
 // ── Hit sparks ────────────────────────────────────────────────────────────────
 
 export const sparkFrames = (big: boolean): EffectSheet => {
-  const size = big ? 40 : 26;
+  const size = big ? 44 : 30;
   const c = size / 2;
   const F = PAL.fire;
   const rayLen = big ? [7, 13, 17, 18, 0] : [5, 9, 11, 12, 0];
@@ -116,6 +116,19 @@ export const sparkFrames = (big: boolean): EffectSheet => {
       for (let d = start; d <= l; d++) {
         const col = d > l * 0.75 ? F[2] : d > l * 0.45 ? F[3] : F[4];
         b.set(c + Math.cos(a) * d, c + Math.sin(a) * d, col);
+      }
+    }
+    // Impact star: long thin 4-point flash on the first frames (reads as "contact").
+    if (f < 2) {
+      const star = (big ? 18 : 12) * (f === 0 ? 1 : 0.6);
+      for (let d = 1; d <= star; d++) {
+        const col = d < star * 0.5 ? PAL.white : F[4];
+        b.set(c + d, c, col);
+        b.set(c - d, c, col);
+        if (d <= star * 0.7) {
+          b.set(c, c + d, col);
+          b.set(c, c - d, col);
+        }
       }
     }
     if (f === 4) {
@@ -184,4 +197,45 @@ export const flameFrames = (): EffectSheet => {
     return b;
   });
   return { frames, originX: 2, originY: 6 };
+};
+
+/** Tintable impact flash for heavy hits: white disc → expanding broken ring with rays. */
+export const impactFrames = (size: number): EffectSheet => {
+  const c = size / 2;
+  const frames = [0, 1, 2, 3, 4].map((f) => {
+    const b = new PixelBuffer(size, size);
+    const r = (size / 2 - 1) * [0.25, 0.5, 0.72, 0.88, 1][f];
+    if (f === 0) b.disc(c, c, r, PAL.white);
+    else {
+      for (let a = 0; a < Math.PI * 2; a += 0.04) {
+        if (f >= 3 && Math.sin(a * 5 + f) > 0.2) continue;
+        for (let t = 0; t < (f < 3 ? 2 : 1); t++) b.set(c + Math.cos(a) * (r - t), c + Math.sin(a) * (r - t), PAL.white);
+      }
+    }
+    if (f >= 1 && f <= 3) {
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.2;
+        for (let d = r * 0.4; d < r * 0.4 + 4 - f; d++) b.set(c + Math.cos(a) * d, c + Math.sin(a) * d, PAL.white);
+      }
+    }
+    return b;
+  });
+  return { frames, originX: Math.floor(c), originY: Math.floor(c) };
+};
+
+/** Soft smoke puff that rises and thins (explosions, heavy landings). */
+export const smokeFrames = (): EffectSheet => {
+  const S = PAL.stone;
+  const frames = [0, 1, 2, 3, 4].map((f) => {
+    const b = new PixelBuffer(24, 24);
+    for (let i = 0; i < 4; i++) {
+      const x = 12 + (i - 1.5) * (2 + f);
+      const y = 16 - f * 2 - (i % 2) * 2;
+      const r = 3 + f * 0.6 - (f > 3 ? 1.5 : 0);
+      b.disc(x, y, r, f < 2 ? S[3] : S[2]);
+      if (f < 3) b.disc(x - 1, y - 1, Math.max(0, r - 2), S[4]);
+    }
+    return b;
+  });
+  return { frames, originX: 12, originY: 16 };
 };

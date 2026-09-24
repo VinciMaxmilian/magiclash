@@ -27,4 +27,12 @@ export const worldHitboxes = (f: FighterState, a: AttackDefinition): Rect[] => {
 export const isInvulnerable = (f: FighterState, c: CharacterDefinition): boolean =>
   f.state === 'dead' ||
   f.invuln > 0 ||
-  (f.state === 'dodge' && f.dodgeTicks >= c.dodge.invulnFrom && f.dodgeTicks <= c.dodge.invulnTo);
+  (f.state === 'dodge' && f.dodgeTicks >= c.dodge.invulnFrom && f.dodgeTicks <= c.dodge.invulnTo) ||
+  intangibleNow(f, c);
+
+/** Inside the current attack's intangible window (teleports). */
+export const intangibleNow = (f: FighterState, c: CharacterDefinition): boolean => {
+  if (f.state !== 'attack' || !f.attack) return false;
+  const w = c.attacks.find((a) => a.id === f.attack!.id)?.intangible;
+  return !!w && f.attack.frame >= w.from && f.attack.frame <= w.to;
+};

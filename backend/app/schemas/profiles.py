@@ -3,8 +3,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.common import StrictModel
+from app.core.game_ids import CharacterId
 
-CharacterId = Literal["knight", "barbarian", "archer", "fire_mage", "ice_mage", "lightning_mage"]
 
 USERNAME_PATTERN = r"^[A-Za-z0-9_]{3,16}$"
 RESERVED_USERNAMES = {

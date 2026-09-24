@@ -33,6 +33,8 @@ export interface ProjectileState {
   vx: number;
   vy: number;
   facing: 1 | -1;
+  /** Thrower's facing at spawn (direction of `accelX`). */
+  facingAtSpawn: 1 | -1;
   age: number;
   /** -1 while flying; ticks since it stuck into geometry otherwise. */
   stuck: number;

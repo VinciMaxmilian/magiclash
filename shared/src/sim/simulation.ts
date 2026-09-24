@@ -198,6 +198,7 @@ export class Simulation {
       vx: Math.cos((sp.angle ?? def.angle) * DEG) * speed * f.facing,
       vy: -Math.sin((sp.angle ?? def.angle) * DEG) * speed,
       facing: f.facing,
+      facingAtSpawn: f.facing,
       age: 0,
       stuck: -1,
       exploding: 0,
@@ -294,10 +295,11 @@ export class Simulation {
       } else {
         const drag = def.drag ?? 1;
         p.vy = (p.vy + def.gravity) * drag;
-        p.vx *= drag;
+        p.vx = p.vx * drag + (def.accelX ?? 0) * p.facingAtSpawn;
         p.x += p.vx;
         p.y += p.vy;
-        if (p.vx !== 0) p.facing = p.vx > 0 ? 1 : -1;
+        // Boomerangs keep facing their thrower's direction while flying back.
+        if (p.vx !== 0 && !def.accelX) p.facing = p.vx > 0 ? 1 : -1;
       }
 
       if (!def.attached && !def.grounded && def.onStage !== 'pass' && this.hitsSolid(p, def)) {

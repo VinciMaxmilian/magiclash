@@ -14,6 +14,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
+from app.core.game_ids import STAGES, StageId
 from app.core.logging import log_event
 from app.repositories.supabase import SupabaseError, SupabaseGateway
 from app.schemas.common import StrictModel
@@ -25,8 +26,6 @@ from app.security.tokens import TokenError, issue_guest_token, issue_join_token,
 
 router = APIRouter(tags=["online"])
 
-StageId = Literal["castle_courtyard", "enchanted_forest", "frozen_fortress", "wizard_tower", "ancient_ruins", "volcanic_keep"]
-STAGES = ["castle_courtyard", "enchanted_forest", "frozen_fortress", "wizard_tower", "ancient_ruins", "volcanic_keep"]
 ROOM_MODES: dict[str, tuple[str, int]] = {"duel": ("ffa", 2), "ffa": ("ffa", 4), "teams": ("teams", 4)}
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no I/O/0/1
 CODE_RE = re.compile(r"^[A-HJ-NP-Z2-9]{6}$")

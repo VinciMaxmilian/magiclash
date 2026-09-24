@@ -14,12 +14,12 @@ from pydantic import BaseModel
 from app.api.profiles import _avatar_url
 from app.repositories.supabase import SupabaseError
 from app.security.auth import gateway, optional_user
+from app.core.game_ids import CharacterId
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
 Period = Literal["season", "week", "month", "character"]
 Queue = Literal["1v1"]  # the only ranked queue so far
-CharacterId = Literal["knight", "barbarian", "archer", "fire_mage", "ice_mage", "lightning_mage"]
 
 CACHE_TTL_SECONDS = 30
 _cache: dict[tuple[Any, ...], tuple[float, list[dict[str, Any]]]] = {}

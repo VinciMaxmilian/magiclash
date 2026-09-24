@@ -21,13 +21,40 @@ import {
   SLASHES,
   dustFrames,
   flameFrames,
+  impactFrames,
+  smokeFrames,
   ringFrames,
   slashFrames,
   sparkFrames,
   streakFrames,
   type EffectSheet,
 } from './effectSprites';
+import {
+  HELL,
+  batFrames,
+  bloodHitFrames,
+  catFrames,
+  crescentFrames,
+  daggerFrames,
+  doveFrames,
+  dragonFrames,
+  featherFrames,
+  mistFrames,
+  phoenixFrames,
+  pillarFrames,
+  runeDiscFrames,
+  turtleFrames,
+  whipFrames,
+  type WhipDir,
+} from './season1Sprites';
 import { FONT_CHARS, GLYPH_H, GLYPH_W, glyphRows } from '../../ui/pixelFont';
+
+/** Whip reach (px) per whip wielder; the heavy crack reaches further. */
+export const WHIPS: Record<string, { reach: number; heavy: number; chain: boolean }> = {
+  hunter: { reach: 56, heavy: 66, chain: true },
+  brawler: { reach: 44, heavy: 50, chain: false },
+};
+const WHIP_DIRS: WhipDir[] = ['side', 'up', 'low', 'heavy', 'air_up', 'air_down', 'spin'];
 
 /**
  * Generates every placeholder texture at boot (≈ tens of ms). Frame names are the contract
@@ -133,7 +160,7 @@ export const ensurePanel = (scene: Phaser.Scene, w: number, h: number, accent?: 
 const STOCK_ICON = ['kkkkkkk', 'kTTuTTk', 'kTTuTTk', 'kTuuuTk', 'kTTuTTk', '.kTTTk.', '..kTk..', '...k...'];
 
 /** Rows to skip above the face when cropping portraits (tall hats). */
-const PORTRAIT_SKIP: Record<string, number> = { fire_mage: 8, ice_mage: 8, lightning_mage: 8, barbarian: 1 };
+const PORTRAIT_SKIP: Record<string, number> = { fire_mage: 8, ice_mage: 8, lightning_mage: 8, barbarian: 1, vampire: 1 };
 
 const registerTeamUi = (scene: Phaser.Scene, team: TeamColor) => {
   const T = TEAM_RAMPS[team];
@@ -193,6 +220,7 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'fx_flame', flameFrames());
   addEffect(scene, 'fx_explosion', explosionFrames(40));
   addEffect(scene, 'fx_explosion_big', explosionFrames(58));
+  addEffect(scene, 'fx_explosion_huge', explosionFrames(80));
   addEffect(scene, 'fx_burst', burstRingFrames(56));
   addEffect(scene, 'fx_shock', shockFrames());
   addEffect(scene, 'fx_frost', frostFrames());
@@ -212,6 +240,36 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'proj_sky_spark', beamFrames(62, 16, true));
   addEffect(scene, 'proj_ball_lightning', orbFrames(16, PAL.lightning, true));
   addEffect(scene, 'proj_thunderstrike', beamFrames(130, 20, true));
+
+  addEffect(scene, 'fx_impact', impactFrames(40));
+  addEffect(scene, 'fx_impact_big', impactFrames(64));
+  addEffect(scene, 'fx_shockwave', burstRingFrames(110));
+  addEffect(scene, 'fx_smoke', smokeFrames());
+
+  // ── Temporada 1 ──
+  for (const [id, w] of Object.entries(WHIPS)) {
+    for (const dir of WHIP_DIRS) {
+      addEffect(scene, `fx_whip_${id}_${dir}`, whipFrames(dir, dir === 'heavy' ? w.heavy : w.reach, w.chain));
+    }
+  }
+  addEffect(scene, 'fx_mist', mistFrames());
+  addEffect(scene, 'fx_bat', batFrames());
+  addEffect(scene, 'fx_feather', featherFrames());
+  addEffect(scene, 'fx_blood', bloodHitFrames());
+  addEffect(scene, 'proj_dagger', daggerFrames());
+  addEffect(scene, 'proj_azure_flame', orbFrames(12, PAL.ice, true));
+  addEffect(scene, 'proj_azure_orb', orbFrames(24, PAL.ice, true));
+  addEffect(scene, 'proj_rune_disc', runeDiscFrames());
+  addEffect(scene, 'proj_azure_pillar', pillarFrames(24, 70, PAL.ice));
+  addEffect(scene, 'proj_hellflame', orbFrames(14, HELL, true));
+  addEffect(scene, 'proj_inferno_orb', orbFrames(34, HELL, true));
+  addEffect(scene, 'proj_hell_geyser', pillarFrames(30, 80, HELL));
+  addEffect(scene, 'proj_crimson_wave', crescentFrames(18, 26));
+  addEffect(scene, 'proj_dove', doveFrames());
+  addEffect(scene, 'proj_cat', catFrames());
+  addEffect(scene, 'proj_phoenix', phoenixFrames());
+  addEffect(scene, 'proj_dragon', dragonFrames());
+  addEffect(scene, 'proj_turtle', turtleFrames());
 
   const px = new PixelBuffer(1, 1);
   px.set(0, 0, PAL.white);
