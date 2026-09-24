@@ -71,9 +71,10 @@ export const validateAttack = (a: AttackDefinition): string[] => {
   if (!(a.damage >= 0 && a.damage <= 60)) errors.push(`damage out of range: ${a.damage}`);
   if (a.knockback.base < 0 || a.knockback.growth < 0) errors.push('knockback must be non-negative');
   if (a.knockback.angle < -90 || a.knockback.angle > 180) errors.push('knockback angle must be in [-90, 180]');
-  if (a.hitboxes.length === 0 && !(a.projectiles && a.projectiles.length)) {
-    errors.push('needs at least one hitbox or projectile');
+  if (a.hitboxes.length === 0 && !(a.projectiles && a.projectiles.length) && !a.whip) {
+    errors.push('needs at least one hitbox, projectile or whip');
   }
+  if (a.whip && !(a.whip.length > 0 && (a.whip.thickness ?? 10) > 0)) errors.push('whip needs a positive length and thickness');
   if (a.charge && (a.charge.frame < 0 || a.charge.frame >= a.startup + a.active || a.charge.maxTicks < 1)) {
     errors.push('charge window invalid');
   }

@@ -7,6 +7,7 @@ export * from './characters/moveset';
 export * from './characters/validate';
 export * from './combat/formulas';
 export * from './combat/hitboxes';
+export * from './combat/whip';
 export * from './physics/stage';
 export * from './physics/collision';
 export * from './sim/types';

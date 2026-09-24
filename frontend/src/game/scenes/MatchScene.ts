@@ -742,8 +742,7 @@ export class MatchScene extends Phaser.Scene {
       }
       const atk = this.sim.attackOf(f);
       this.views[i].update(f, x, y, atk, t);
-      const sp = this.views[i].sprite;
-      this.whips[i]?.update(f, atk, sp.x - (f.facing < 0 ? 1 : 0), sp.y, this.views[i].pose, dtTicks);
+      this.whips[i]?.update(f, atk, x, y, alpha, this.views[i].pose, dtTicks);
     });
     this.projectiles.update(this.sim, t);
     this.fx.update(dtTicks);

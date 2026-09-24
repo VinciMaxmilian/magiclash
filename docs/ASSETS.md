@@ -160,7 +160,7 @@ Para trocar um fundo: substitua o bruto em `assets-raw/higgsfield/` e rode
 
 | Asset | Origem | Ferramenta/prompt | Status |
 |---|---|---|---|
-| Chicotes (Caçador, Lutador): corda com física verlet presa à mão; ondula, estala e se arrasta no chão | procedural em tempo real | `render/WhipView.ts` (só visual; hitboxes nos dados) | em uso |
+| Chicotes (Caçador, Lutador): durante o golpe a corda é a curva da simulação (`shared/src/combat/whip.ts`, a mesma das hitboxes); depois vira corda verlet que cai, balança, arrasta e recolhe | procedural em tempo real | `render/WhipView.ts` | em uso |
 | Temporada 1: 5 lutadores, névoa, facas, magia azul, fogo infernal, animais invocados | procedural | `render/fighterSprite.ts`, `render/season1Sprites.ts` | em uso (placeholder) |
 | Temporada 1: Salão do Trono, Biblioteca dos Caçadores | procedural (Higgsfield falhou; fundo pintado pode vir depois) | `maps/throneHallArt.ts`, `maps/huntersLibraryArt.ts` | em uso (placeholder) |
 | Efeitos de impacto, fumaça, onda de choque | procedural | `render/effectSprites.ts` | em uso |

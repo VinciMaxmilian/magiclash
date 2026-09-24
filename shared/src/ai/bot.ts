@@ -3,6 +3,7 @@ import { rectsOverlap, toWorldRect, type Rect } from '../core/math';
 import { chance, createRng, nextFloat, nextInt, type RngState } from '../core/rng';
 import { launchSpeed } from '../combat/formulas';
 import { isInvulnerable } from '../combat/hitboxes';
+import { whipHitboxes } from '../combat/whip';
 import { canUseAttack } from '../sim/fighter';
 import type { Simulation } from '../sim/simulation';
 import type { FighterState } from '../sim/types';
@@ -79,6 +80,15 @@ export const computeAttackReach = (a: AttackDefinition, c: CharacterDefinition):
     y += vy;
     const i = frame - a.startup;
     if (i < 0) continue;
+    if (a.whip) {
+      for (const h of whipHitboxes(a.whip, a, frame, 0, x, y, 1)) {
+        minX = Math.min(minX, h.x);
+        minY = Math.min(minY, h.y);
+        maxX = Math.max(maxX, h.x + h.w);
+        maxY = Math.max(maxY, h.y + h.h);
+      }
+      continue;
+    }
     for (const h of a.hitboxes) {
       if (i < (h.from ?? 0) || i > (h.to ?? a.active - 1)) continue;
       minX = Math.min(minX, x + h.x);

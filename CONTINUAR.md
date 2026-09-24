@@ -31,7 +31,9 @@ Fases **0–7 implementadas**. Testes automatizados verdes; verificação no nav
   Vampiro: chamas infernais + grande esfera de fogo; Mestiço: espada + teleporte intangível com névoa
   carmesim; Invocadora: pombas, gato, fênix, dragão e tartaruga) e 2 mapas (Salão do Trono, Biblioteca
   dos Caçadores, arte procedural). Tela **TEMPORADA 1: NOVIDADES** no título (`SeasonScene`).
-  Mecânicas novas na sim: `intangible` (janela de invulnerabilidade de um golpe) e `accelX` (bumerangue).
+  Mecânicas novas na sim: `intangible` (janela de invulnerabilidade de um golpe), `accelX` (bumerangue) e
+  `whip` (chicote: forma da corda = função pura do quadro do golpe; as hitboxes seguem a corda — determinístico,
+  sem estado extra nos snapshots; o render desenha a mesma curva).
   Nomes, golpes e visual são originais do MagiClash (nada ligado a obras existentes).
 - **Efeitos**: flash de impacto em todo acerto, rastro nos cortes, estrela de contato nas faíscas, explosões
   com anel e fumaça proporcionais ao tamanho, onda de choque + flash de tela no KO, poeira dupla em quedas
@@ -58,7 +60,7 @@ Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRE
 
 | Comando | O quê |
 |---|---|
-| `npm test` | 133 testes vitest (inclui Temporada 1): física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
+| `npm test` | 136 testes vitest (inclui Temporada 1): física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
 | `npm run typecheck` | TS estrito shared + frontend + realtime |
 | `cd backend; .\.venv\Scripts\python.exe main.py test` | 102 testes pytest: segurança, perfis (fake), avatar, online (guest, salas, fila, resultado assinado) |
 | `SUPABASE_IT=1 … pytest tests/test_supabase_integration.py` | 10 testes de RLS/funções no Supabase real (cria/apaga usuários) |

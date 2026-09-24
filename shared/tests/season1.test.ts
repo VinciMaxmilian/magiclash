@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Btn, CHARACTERS, SEASONS, STAGES, Simulation, isInvulnerable, validateCharacter, type SimEvent } from '../src';
+import { Btn, CHARACTERS, SEASONS, STAGES, Simulation, isInvulnerable, validateCharacter, whipPoints, worldHitboxes, type SimEvent } from '../src';
 import { place, run, settle } from './helpers';
 
 const duel = (a: string, b: string, stageId = 'castle_courtyard') =>
@@ -37,6 +37,54 @@ describe('Temporada 1', () => {
     place(sim, 1, 16, -1);
     settle(sim);
     expect(hitsOn(run(sim, 40, (t) => [t < 2 ? Btn.Light : 0, 0]), 1).length).toBe(1);
+  });
+
+  it('whip hitboxes are the rope: every active frame, the boxes sit on the rope points', () => {
+    const sim = duel('hunter', 'knight');
+    place(sim, 0, -40, 1);
+    place(sim, 1, 150, -1);
+    settle(sim);
+    const f = sim.state.fighters[0];
+    const atk = CHARACTERS.hunter.attacks.find((a) => a.id === 'whip_snap')!;
+    let checked = 0;
+    run(sim, 30, (t) => {
+      if (f.attack?.id === 'whip_snap' && f.attack.frame >= atk.startup && f.attack.frame < atk.startup + atk.active) {
+        const pts = whipPoints(atk.whip!, atk, f.attack.frame, 0, f.x, f.y, f.facing);
+        const boxes = worldHitboxes(f, atk);
+        const tip = boxes[boxes.length - 1];
+        expect(tip.x + tip.w / 2).toBeCloseTo(pts[pts.length - 1].x, 5);
+        expect(tip.y + tip.h / 2).toBeCloseTo(pts[pts.length - 1].y, 5);
+        checked++;
+      }
+      return [t < 2 ? Btn.Light : 0, 0];
+    });
+    expect(checked).toBe(atk.active);
+  });
+
+  it('the tip lashes out late: a target at full reach is hit after the base of the whip', () => {
+    const hitFrame = (distance: number) => {
+      const sim = duel('hunter', 'knight');
+      place(sim, 0, -40, 1);
+      place(sim, 1, -40 + distance, -1);
+      settle(sim);
+      for (let t = 0; t < 30; t++) {
+        if (sim.step([t < 2 ? Btn.Light : 0, 0]).some((e) => e.type === 'hit')) return t;
+      }
+      return -1;
+    };
+    const near = hitFrame(20);
+    const far = hitFrame(60);
+    expect(near).toBeGreaterThan(0);
+    expect(far).toBeGreaterThan(near);
+  });
+
+  it('chain whirl hits someone standing behind', () => {
+    const sim = duel('hunter', 'knight');
+    place(sim, 0, 0, 1);
+    place(sim, 1, -34, 1);
+    settle(sim);
+    const ev = run(sim, 50, (t) => [t < 2 ? Btn.Heavy | Btn.Down : 0, 0]);
+    expect(hitsOn(ev, 1).length).toBe(1);
   });
 
   it('hunter throws a dagger that hits at range', () => {

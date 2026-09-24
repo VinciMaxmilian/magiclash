@@ -1,6 +1,7 @@
 import { toWorldRect, type Rect } from '../core/math';
 import type { AttackDefinition, CharacterDefinition } from '../characters/types';
 import type { FighterState } from '../sim/types';
+import { whipHitboxes } from './whip';
 
 /**
  * Hitboxes/hurtboxes are independent from sprite pixels: combat never uses visual collision.
@@ -19,6 +20,7 @@ export const activeFrameIndex = (f: FighterState, a: AttackDefinition): number =
 export const worldHitboxes = (f: FighterState, a: AttackDefinition): Rect[] => {
   const i = activeFrameIndex(f, a);
   if (i < 0) return [];
+  if (a.whip) return whipHitboxes(a.whip, a, f.attack!.frame, f.attack!.charge, f.x, f.y, f.facing);
   return a.hitboxes
     .filter((h) => i >= (h.from ?? 0) && i <= (h.to ?? a.active - 1))
     .map((h) => toWorldRect(h, f.x, f.y, f.facing));

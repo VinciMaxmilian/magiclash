@@ -156,6 +156,25 @@ export interface ChargeDefinition {
   speed?: number;
 }
 
+/**
+ * Whip lash (see combat/whip.ts): the rope's shape is a function of the attack frame and its
+ * hitboxes follow the rope during the active window.
+ */
+export interface WhipDefinition {
+  /** Rope length (px). */
+  length: number;
+  /** Handle tip (relative to the feet, facing right) at the end of the wind-up and at the strike. */
+  handFrom: [number, number];
+  hand: [number, number];
+  /** Guide angles in degrees (0 forward, -90 up, 90 down), unnormalized: the path is the sweep. */
+  wind: number;
+  strike: number;
+  /** Spins: total degrees swept across the active window (strike is ignored). */
+  spin?: number;
+  /** Hitbox size around each rope point. Default 10. */
+  thickness?: number;
+}
+
 export interface AttackDefinition {
   id: string;
   name: string;
@@ -192,6 +211,8 @@ export interface AttackDefinition {
   hitstunMultiplier?: number;
   status?: StatusEffect;
   projectiles?: ProjectileSpawn[];
+  /** Whip lash: hitboxes follow the rope instead of `hitboxes` (which only guide the bots). */
+  whip?: WhipDefinition;
   /** Attack frames (inclusive) during which the fighter can't be hit (teleports). */
   intangible?: { from: number; to: number };
   /** Hold the button to charge (archer / mages). */

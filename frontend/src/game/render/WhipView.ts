@@ -1,56 +1,20 @@
 import Phaser from 'phaser';
-import type { AttackDefinition, FighterState } from '@magiclash/shared';
+import { WHIP_SEGMENTS, whipPoints, type AttackDefinition, type FighterState } from '@magiclash/shared';
 import { PAL } from './palette';
 import { STYLES, whipHandleTip, type Pose } from './fighterSprite';
 
 /**
- * Whip rope with verlet physics (purely cosmetic: hitboxes live in the attack data).
+ * Whip rope for the whip wielders.
  *
- * The rope hangs from the handle tip of the current sprite frame. During a whip attack every
- * point is pulled toward a "guide" line whose angle sweeps from the wind-up to the strike; the
- * pull is strong near the hand and weak at the tip, so the tip lags behind, the wave travels
- * down the rope and overshoots at the end (the crack). Spins and the heavy's charge whirl the
- * guide around the hand. When the attack ends the guide lets go: the rope falls, swings and is
- * reeled back in.
+ * During a whip attack the rope IS the simulation's lash (shared `whipPoints`, the same curve
+ * the hitboxes follow), interpolated between ticks — what you see is what hits. When the attack
+ * ends the rope keeps that shape and velocity and becomes a verlet rope hanging from the sprite's
+ * hand: it falls, swings, drags on the floor and is reeled back in. That part is cosmetic.
  */
 
-export interface WhipSpec {
-  /** Rope length (px) for normal lashes and for the heavy crack. */
-  reach: number;
-  heavy: number;
-  chain: boolean;
-}
-
-export const WHIPS: Record<string, WhipSpec> = {
-  hunter: { reach: 56, heavy: 66, chain: true },
-  brawler: { reach: 44, heavy: 50, chain: false },
-};
-
-/** Guide angles (degrees, facing right, screen space: 0 = forward, -90 = up, 90 = down). */
-interface Motion {
-  wind: number;
-  strike: number;
-  spin?: boolean;
-  heavy?: boolean;
-}
-
-const MOTIONS: Record<string, Motion> = {
-  whip_side: { wind: -150, strike: 0 },
-  whip_heavy: { wind: -170, strike: -4, heavy: true },
-  whip_up: { wind: 150, strike: -52 },
-  whip_low: { wind: -135, strike: 10 },
-  whip_air_up: { wind: 80, strike: -86 },
-  whip_air_down: { wind: -110, strike: 44 },
-  whip_spin: { wind: -90, strike: 0, spin: true },
-};
-
-const SEG = 4; // px per rope segment
 const GRAVITY = 0.28;
 const DAMPING = 0.955;
 const ITERATIONS = 5;
-const DEG = Math.PI / 180;
-/** Spins flatten the circle vertically so the lash reads as whirling around the body. */
-const SPIN_FLATTEN = 0.4;
 
 interface Pt {
   x: number;
@@ -59,150 +23,115 @@ interface Pt {
   py: number;
 }
 
-const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-
 export class WhipView {
   private readonly gfx: Phaser.GameObjects.Graphics;
-  private readonly spec: WhipSpec;
+  private readonly chain: boolean;
   private readonly pts: Pt[] = [];
   private extend = 0;
   private acc = 0;
+  private length = 40;
   /** Attack being drawn and its last frame (a lower frame = the same move started again). */
   private attackId = '';
   private lastFrame = 0;
-  private spinning = false;
   private cracked = false;
-  /** Guide state for the current tick. */
-  private guideAngle = 0;
-  private guideK = 0;
-  private spinPhase = 0;
-  private length = 0;
 
   constructor(
     scene: Phaser.Scene,
     private readonly characterId: string,
     private readonly onCrack: (x: number, y: number, heavy: boolean) => void,
   ) {
-    this.spec = WHIPS[characterId];
+    this.chain = STYLES[characterId].weapon === 'chainwhip';
     this.gfx = scene.add.graphics().setDepth(10.5);
-    const n = Math.ceil(this.spec.heavy / SEG) + 1;
-    for (let i = 0; i < n; i++) this.pts.push({ x: 0, y: 0, px: 0, py: 0 });
+    for (let i = 0; i <= WHIP_SEGMENTS; i++) this.pts.push({ x: 0, y: 0, px: 0, py: 0 });
   }
 
   static wields(characterId: string): boolean {
     const w = STYLES[characterId]?.weapon;
-    return (w === 'whip' || w === 'chainwhip') && !!WHIPS[characterId];
+    return w === 'whip' || w === 'chainwhip';
   }
 
   /**
-   * `x, y` = the sprite's (interpolated) feet position, `pose` = the frame being shown.
-   * `dt` in 60 Hz ticks.
+   * `x, y` = the sprite's (interpolated) feet, `alpha` = interpolation between sim ticks,
+   * `pose` = the frame on screen, `dt` in 60 Hz ticks.
    */
-  update(f: FighterState, attack: AttackDefinition | undefined, x: number, y: number, pose: Pose | undefined, dt: number): void {
-    const facing = f.facing;
-    const tip = pose ? whipHandleTip(pose, STYLES[this.characterId]) : ([10, -24] as [number, number]);
-    const ax = x + facing * tip[0];
-    const ay = y + tip[1];
-
-    const motion = attack && f.attack && f.state === 'attack' ? MOTIONS[attack.effect] : undefined;
-    if (motion && attack && f.attack) {
-      if (attack.id !== this.attackId || f.attack.frame < this.lastFrame) {
-        // New lash: the rope unfurls from the hand.
-        for (const p of this.pts) Object.assign(p, { x: ax, y: ay, px: ax, py: ay });
-        this.cracked = false;
-        this.spinPhase = 0;
-      }
-      this.attackId = attack.id;
-      this.lastFrame = f.attack.frame;
-      this.spinning = !!motion.spin;
-      this.length = motion.heavy ? this.spec.heavy : this.spec.reach;
-      this.extend = 1;
-      this.plan(motion, attack, f);
-    } else {
-      this.attackId = '';
-      this.lastFrame = 0;
-      this.spinning = false;
-      this.guideK = 0;
-      // Reel in (faster when hit or dead).
-      this.extend = Math.max(0, this.extend - (f.state === 'hitstun' || f.state === 'dead' ? 0.25 : 0.07) * dt);
-    }
-
-    if (this.extend <= 0 || f.state === 'dead') {
+  update(
+    f: FighterState,
+    attack: AttackDefinition | undefined,
+    x: number,
+    y: number,
+    alpha: number,
+    pose: Pose | undefined,
+    dt: number,
+  ): void {
+    if (f.state === 'dead') {
+      this.extend = 0;
       this.gfx.clear();
       return;
     }
-
-    // Fixed-rate physics, decoupled from the frame rate.
-    this.acc += dt;
-    let steps = 0;
-    while (this.acc >= 1 && steps < 4) {
-      this.step(ax, ay, facing, f.grounded ? y : null);
-      this.acc -= 1;
-      steps++;
-    }
-    if (steps === 4) this.acc = 0;
-
-    // Crack: the tip outruns everything during the strike.
-    if (motion && attack && f.attack && !this.cracked && f.attack.frame >= attack.startup) {
-      const n = this.segments();
-      const t = this.pts[n];
-      if (Math.hypot(t.x - t.px, t.y - t.py) > 6) {
+    const whip = f.state === 'attack' && f.attack && attack?.whip ? attack.whip : undefined;
+    // The lash follows the simulation until its hitting window ends; then the rope is let go.
+    const lashing = !!whip && !!attack && !!f.attack && f.attack.frame < attack.startup + attack.active;
+    if (whip && attack && f.attack && lashing) {
+      const fresh = attack.id !== this.attackId || f.attack.frame < this.lastFrame;
+      this.attackId = attack.id;
+      this.lastFrame = f.attack.frame;
+      if (fresh) this.cracked = false;
+      this.length = whip.length;
+      this.extend = 1;
+      const frame = f.attack.frame + (f.hitlag > 0 ? 0 : Math.min(0.999, alpha));
+      const target = whipPoints(whip, attack, frame, f.attack.charge, x, y, f.facing);
+      target.forEach((t, i) => {
+        const p = this.pts[i];
+        // Keep the previous position as verlet history: on release the rope carries this motion.
+        p.px = fresh ? t.x : p.x;
+        p.py = fresh ? t.y : p.y;
+        p.x = t.x;
+        p.y = t.y;
+      });
+      const tip = this.pts[WHIP_SEGMENTS];
+      if (!this.cracked && f.attack.frame >= attack.startup && Math.hypot(tip.x - tip.px, tip.y - tip.py) > 7 * Math.max(0.5, dt)) {
         this.cracked = true;
-        this.onCrack(t.x, t.y, !!motion.heavy);
+        this.onCrack(tip.x, tip.y, whip.length > 60 || !!whip.spin);
+      }
+      this.acc = 0;
+    } else {
+      if (!whip) {
+        this.attackId = '';
+        this.lastFrame = 0;
+      }
+      if (this.extend <= 0) {
+        this.gfx.clear();
+        return;
+      }
+      // Reel in once the move is over (faster when hit); during its recovery the rope just falls.
+      if (!whip) this.extend = Math.max(0, this.extend - (f.state === 'hitstun' ? 0.25 : 0.07) * dt);
+      const handle = pose ? whipHandleTip(pose, STYLES[this.characterId]) : ([10, -24] as [number, number]);
+      const ax = x + f.facing * handle[0];
+      const ay = y + handle[1];
+      this.acc += dt;
+      let steps = 0;
+      while (this.acc >= 1 && steps < 4) {
+        this.step(ax, ay, f.grounded ? y : null);
+        this.acc -= 1;
+        steps++;
+      }
+      if (steps === 4) this.acc = 0;
+      if (this.extend <= 0) {
+        this.gfx.clear();
+        return;
       }
     }
     this.draw();
   }
 
   private segments(): number {
-    return Math.max(1, Math.min(this.pts.length - 1, Math.round((this.length * Math.max(0.15, this.extend)) / SEG)));
+    return Math.max(1, Math.min(WHIP_SEGMENTS, Math.round(WHIP_SEGMENTS * Math.max(0.15, this.extend))));
   }
 
-  /** Sets the guide angle and stiffness for this attack frame. */
-  private plan(m: Motion, a: AttackDefinition, f: FighterState) {
-    const fr = f.attack!.frame;
-    const S = a.startup;
-    const hang = 100; // rope hanging slightly behind
-    const charging = !!a.charge && f.attack!.charge > 0 && fr === a.charge.frame;
-    if (m.spin) {
-      // Whirl: two full turns across the active window, starting during the wind-up.
-      const total = S + a.active;
-      this.spinPhase = (fr / total) * 720 + (fr < S ? 0 : 90);
-      this.guideAngle = m.wind + this.spinPhase;
-      this.guideK = fr < S + a.active ? 0.42 : 0.05;
-      return;
-    }
-    if (charging) {
-      // Holding the heavy: the rope circles overhead, faster as the charge builds.
-      const c = f.attack!.charge;
-      this.spinPhase += 16 + Math.min(14, c * 0.4);
-      this.guideAngle = -90 + this.spinPhase;
-      this.guideK = 0.38;
-      return;
-    }
-    if (fr < S) {
-      this.guideAngle = hang + (m.wind - hang) * ease(fr / Math.max(1, S - 1));
-      this.guideK = 0.22;
-    } else if (fr < S + a.active + 2) {
-      // Snap toward the strike in ~2 ticks; the loose tip follows late and overshoots.
-      const k = ease((fr - S + 1) / 2);
-      this.guideAngle = m.wind + (m.strike - m.wind) * k;
-      this.guideK = 0.62;
-    } else {
-      // Recovery: the hand relaxes, the rope drops and swings.
-      const r = fr - (S + a.active + 2);
-      this.guideAngle = m.strike;
-      this.guideK = Math.max(0, 0.3 - r * 0.06);
-    }
-  }
-
-  /** `floor` = ground height under a grounded fighter: the rope drags on it instead of sinking. */
-  private step(ax: number, ay: number, facing: 1 | -1, floor: number | null) {
+  /** Free rope step. `floor` = ground under a grounded fighter: the rope drags on it. */
+  private step(ax: number, ay: number, floor: number | null) {
     const n = this.segments();
-    const rest = (this.length / Math.max(1, Math.round(this.length / SEG))) * Math.max(0.15, this.extend);
-    const ang = this.guideAngle * DEG;
-    const dx = Math.cos(ang) * facing;
-    const dy = Math.sin(ang);
+    const rest = (this.length / WHIP_SEGMENTS) * Math.max(0.15, this.extend);
     for (let i = 1; i <= n; i++) {
       const p = this.pts[i];
       const vx = (p.x - p.px) * DAMPING;
@@ -211,35 +140,25 @@ export class WhipView {
       p.py = p.y;
       p.x += vx;
       p.y += vy + GRAVITY;
-      if (this.guideK > 0) {
-        // Stiff near the hand, loose at the tip.
-        const k = this.guideK * (1 - 0.8 * (i / n));
-        const d = rest * i;
-        const tx = ax + dx * d;
-        const ty = ay + dy * d * (this.spinning ? SPIN_FLATTEN : 1);
-        p.x += (tx - p.x) * k;
-        p.y += (ty - p.y) * k;
-      }
     }
-    // Rope constraints, hand pinned.
     for (let it = 0; it < ITERATIONS; it++) {
       this.pts[0].x = ax;
       this.pts[0].y = ay;
       for (let i = 0; i < n; i++) {
         const a = this.pts[i];
         const b = this.pts[i + 1];
-        const ddx = b.x - a.x;
-        const ddy = b.y - a.y;
-        const dist = Math.hypot(ddx, ddy) || 0.0001;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.0001;
         const diff = (dist - rest) / dist;
         if (i === 0) {
-          b.x -= ddx * diff;
-          b.y -= ddy * diff;
+          b.x -= dx * diff;
+          b.y -= dy * diff;
         } else {
-          a.x += ddx * diff * 0.5;
-          a.y += ddy * diff * 0.5;
-          b.x -= ddx * diff * 0.5;
-          b.y -= ddy * diff * 0.5;
+          a.x += dx * diff * 0.5;
+          a.y += dy * diff * 0.5;
+          b.x -= dx * diff * 0.5;
+          b.y -= dy * diff * 0.5;
         }
       }
     }
@@ -252,8 +171,7 @@ export class WhipView {
         }
       }
     }
-    // Points past the current length ride on the tip (ready for the next unfurl).
-    for (let i = n + 1; i < this.pts.length; i++) Object.assign(this.pts[i], { x: this.pts[n].x, y: this.pts[n].y, px: this.pts[n].x, py: this.pts[n].y });
+    for (let i = n + 1; i <= WHIP_SEGMENTS; i++) Object.assign(this.pts[i], { x: this.pts[n].x, y: this.pts[n].y, px: this.pts[n].x, py: this.pts[n].y });
     this.pts[0].px = this.pts[0].x = ax;
     this.pts[0].py = this.pts[0].y = ay;
   }
@@ -285,7 +203,7 @@ export class WhipView {
       }
       along += len;
     }
-    const chain = this.spec.chain;
+    const chain = this.chain;
     g.fillStyle(PAL.ink, 1);
     for (const p of px) g.fillRect(p.x - 1, p.y - 1, 3, p.t < 0.35 && chain ? 4 : 3);
     const S = PAL.steel;
