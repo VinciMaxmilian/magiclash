@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PixelBuffer } from '../render/pixelBuffer';
-import { buildCastleCourtyardArt, parallaxPosition, type StageArt } from './castleCourtyardArt';
+import { buildCastleCourtyardArt, margins, parallaxPosition, REF_CENTER, VIEW_H, VIEW_W, type StageArt } from './castleCourtyardArt';
 import { buildEnchantedForestArt } from './enchantedForestArt';
 import { buildFrozenFortressArt } from './frozenFortressArt';
 import { buildWizardTowerArt } from './wizardTowerArt';
@@ -9,6 +9,7 @@ import { buildVolcanicKeepArt } from './volcanicKeepArt';
 import { EFFECT_ORIGINS } from '../render/textures';
 import type { EffectManager } from '../effects/EffectManager';
 import { PAL } from '../render/palette';
+import { BACKDROP_SF, backdropKey } from './backdrops';
 
 const ART_BUILDERS: Record<string, () => StageArt> = {
   castle_courtyard: buildCastleCourtyardArt,
@@ -59,7 +60,18 @@ export class StageView {
     }
     this.ambient = art.ambient;
 
-    for (const l of art.parallax) {
+    // A painted backdrop replaces every procedural layer behind the playable world.
+    const painted = scene.textures.exists(backdropKey(stageId));
+    const shown = painted ? art.parallax.filter((l) => l.sf > 1) : art.parallax;
+    if (painted) {
+      const { mx, my } = margins(BACKDROP_SF);
+      scene.add
+        .image(-mx + (REF_CENTER.x - VIEW_W / 2) * BACKDROP_SF, -my + (REF_CENTER.y - VIEW_H / 2) * BACKDROP_SF, backdropKey(stageId))
+        .setOrigin(0, 0)
+        .setScrollFactor(BACKDROP_SF)
+        .setDepth(-100);
+    }
+    for (const l of shown) {
       addBufferTexture(scene, l.key, l.buf);
       const p = parallaxPosition(l);
       scene.add.image(p.x, p.y, l.key).setOrigin(0, 0).setScrollFactor(l.sf).setDepth(l.depth);
@@ -69,7 +81,8 @@ export class StageView {
 
     const flameMeta = EFFECT_ORIGINS.get('fx_flame');
     for (const [i, t] of art.torches.entries()) {
-      const layer = art.parallax.find((l) => l.key === t.layer)!;
+      const layer = shown.find((l) => l.key === t.layer);
+      if (!layer) continue;
       const p = parallaxPosition(layer);
       const sprite = scene.add.sprite(p.x + t.u, p.y + t.v, 'fx_flame', 0);
       if (flameMeta) sprite.setOrigin(flameMeta.x / 5, flameMeta.y / 7);

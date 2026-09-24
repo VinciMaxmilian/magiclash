@@ -142,10 +142,25 @@ Se estiver visualmente ruim: **não usa**. Placeholder procedural é preferível
 Isso dá uma base coerente para jogar e balancear. Na Fase 7 os sprites são substituídos por pixel art
 final mantendo os mesmos nomes de frames/animações (o render só troca a textura).
 
+### Fundos pintados (Higgsfield)
+
+Os fundos distantes dos 6 mapas e a tela de título usam imagens do Higgsfield, processadas por
+`tools/process_backdrops.py` (redução para a resolução nativa, quantização para a paleta, dither 2×2
+só no fundo). `maps/backdrops.ts` as carrega no `BootScene`. Quando o fundo pintado existe, o `StageView`
+o desenha em parallax 0,05 e **omite as camadas procedurais atrás do mundo jogável** (céu, fundo e
+muros intermediários); plataformas e primeiro plano continuam procedurais. Se a imagem não carregar,
+o cenário procedural completo volta a aparecer. Arquivo bruto → mapa: `castelo`→Castle Courtyard,
+`elder_forest`→Enchanted Forest, `ice_castle`→Frozen Fortress, `dark_reign`→Wizard Tower,
+`old_ruins`→Ancient Ruins, `vulcan`→Volcanic Keep, `wizard_tower`→título.
+
+Para trocar um fundo: substitua o bruto em `assets-raw/higgsfield/` e rode
+`backend\.venv\Scripts\python.exe tools/process_backdrops.py`.
+
 ### Log de assets
 
 | Asset | Origem | Ferramenta/prompt | Status |
 |---|---|---|---|
+| Fundos pintados dos 6 mapas + arte do título | Higgsfield `z_image`, 2048×1152, 2026-09-24 (brutos em `assets-raw/higgsfield/`; prompts no histórico do Higgsfield: "16-bit pixel art video game background, side-scrolling fighting game stage backdrop, far distance only…") | `tools/process_backdrops.py`: reduz para 640×360 + margem de parallax, quantiza para a paleta mestre com dither 2×2 → `frontend/src/assets/backdrops/` | em uso |
 | 6 classes (placeholder) | procedural | `render/fighterSprite.ts` (poses do cavaleiro em `knightSprite.ts`) | em uso (placeholder) |
 | Projéteis e efeitos elementais | procedural | `render/projectileSprites.ts` | em uso (placeholder) |
 | Enchanted Forest, Frozen Fortress | procedural | `maps/*Art.ts`, `maps/stageKit.ts` | em uso (placeholder) |

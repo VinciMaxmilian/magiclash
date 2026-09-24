@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { REF_CENTER } from '../maps/castleCourtyardArt';
+import { TITLE_ART_KEY } from '../maps/backdrops';
 import { ensurePanel } from '../render/textures';
 import { pixelText, setPixelText } from '../../ui/text';
 import { CONTROL_HINTS } from '../input/actions';
@@ -15,7 +16,7 @@ export class TitleScene extends Phaser.Scene {
   private cursor = 0;
   private controls!: Phaser.GameObjects.Container;
   private t = 0;
-  private stageView!: StageView;
+  private stageView?: StageView;
   private starting = false;
 
   constructor() {
@@ -29,7 +30,13 @@ export class TitleScene extends Phaser.Scene {
     this.cursor = 0;
     this.t = 0;
     this.starting = false;
-    this.stageView = new StageView(this, 'castle_courtyard');
+    // Painted key art when it loaded; otherwise the castle stage as a living background.
+    if (this.textures.exists(TITLE_ART_KEY)) {
+      this.stageView = undefined;
+      this.add.image(0, 0, TITLE_ART_KEY).setOrigin(0, 0).setScrollFactor(0).setDepth(-100);
+    } else {
+      this.stageView = new StageView(this, 'castle_courtyard');
+    }
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.setScroll(REF_CENTER.x - 320, REF_CENTER.y - 180 - 40);
 
@@ -105,7 +112,7 @@ export class TitleScene extends Phaser.Scene {
     const { input, audio } = svc();
     input.update();
     this.t += delta / 16.67;
-    this.stageView.update(delta / 16.67);
+    this.stageView?.update(delta / 16.67);
     // Slow idle drift of the camera for a living menu background (whole pixels only).
     this.cameras.main.setScroll(
       Math.round(REF_CENTER.x - 320 + Math.sin(this.t / 400) * 60),

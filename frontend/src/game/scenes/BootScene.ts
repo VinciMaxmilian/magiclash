@@ -1,11 +1,18 @@
 import Phaser from 'phaser';
 import { CHARACTERS, validateCharacter } from '@magiclash/shared';
 import { registerAllTextures } from '../render/textures';
+import { preloadBackdrops } from '../maps/backdrops';
 
-/** Loading: generates all placeholder textures, validates game data in DEV, then Title. */
+/** Loading: loads the painted backdrops, generates all placeholder textures, validates game data in DEV, then Title. */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
+  }
+
+  preload(): void {
+    // A failed image only drops that backdrop: StageView falls back to the procedural layers.
+    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (f: Phaser.Loader.File) => console.warn('Backdrop failed to load', f.key));
+    preloadBackdrops(this);
   }
 
   create(): void {

@@ -59,8 +59,9 @@ Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRE
 
 1. Phaser só renderiza; simulação é TS puro em `shared/` (reutilizada pelo futuro servidor).
 2. Serverless não serve para o loop realtime → **game server Node/TS persistente**; API e game server no Render.
-3. Arte da Fase 1–4 é **procedural** (pixel puppets com proporção fixa, paleta única). Nenhum
-   asset de IA entrou no jogo. Frames têm nomes estáveis para troca pela arte final.
+3. Personagens, efeitos e plataformas são **procedurais** (pixel puppets com proporção fixa, paleta única).
+   Os **fundos dos 6 mapas e a tela de título** são imagens do Higgsfield quantizadas para a paleta
+   (`tools/process_backdrops.py`, `maps/backdrops.ts`; ver docs/ASSETS.md §10). Frames têm nomes estáveis para troca pela arte final.
 4. Escala: FIT preenchendo a janela (pedido do usuário), nearest-neighbour.
 5. `__DEV_TOOLS__` (modo do Vite) em vez de `import.meta.env.DEV`: a máquina tem
    `NODE_ENV=development` global, que vazava ferramentas de debug no build.
