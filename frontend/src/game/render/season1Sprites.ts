@@ -3,7 +3,7 @@ import { PAL, TEAM_RAMPS } from './palette';
 import type { EffectSheet } from './effectSprites';
 
 /**
- * Temporada 1 procedural art: whip lashes, crimson mist, daggers, azure magic, hellfire and
+ * Temporada 1 procedural art (the whip rope is live: render/WhipView): crimson mist, daggers, azure magic, hellfire and
  * the summoned animals. Same rules as the rest (docs/ASSETS.md): palette only, crisp, no
  * runtime rotation (directional things are pre-drawn).
  */
@@ -20,116 +20,6 @@ const centered = (frames: PixelBuffer[]): EffectSheet => ({
   originX: Math.floor(frames[0].w / 2),
   originY: Math.floor(frames[0].h / 2),
 });
-
-// ── Whip lashes ────────────────────────────────────────────────────────────────
-
-export type WhipDir = 'side' | 'up' | 'low' | 'heavy' | 'air_up' | 'air_down' | 'spin';
-
-/** Hand position (relative to the feet, facing right) and lash angle for each direction. */
-const WHIP_GEOMETRY: Record<Exclude<WhipDir, 'spin'>, { hand: P; angle: number; scale: number }> = {
-  side: { hand: [14, -23], angle: 0, scale: 1 },
-  heavy: { hand: [14, -24], angle: -2, scale: 1.12 },
-  up: { hand: [11, -30], angle: -48, scale: 0.9 },
-  low: { hand: [13, -14], angle: 12, scale: 1 },
-  air_up: { hand: [7, -33], angle: -80, scale: 0.85 },
-  air_down: { hand: [11, -15], angle: 42, scale: 0.8 },
-};
-
-/**
- * Whip sheet whose origin is the fighter's feet. Frames: lashing out (wave) → fully
- * extended with the crack at the tip → sagging → recoiling.
- */
-export const whipFrames = (dir: WhipDir, reach: number, chain: boolean): EffectSheet => {
-  const S = PAL.steel;
-  const L = PAL.leather;
-  type Stroke = { pts: P[]; crack: boolean };
-  const strokes: Stroke[] = [];
-  if (dir === 'spin') {
-    // Whirl: an elliptical lash around the fighter, drawn as a rotating arc.
-    for (let f = 0; f < 5; f++) {
-      const pts: P[] = [];
-      const a0 = f * 1.3;
-      for (let t = 0; t <= 1; t += 0.02) {
-        const a = a0 + t * Math.PI * 1.6;
-        pts.push([Math.cos(a) * reach * 0.8, -26 + Math.sin(a) * reach * 0.28]);
-      }
-      strokes.push({ pts, crack: f === 2 });
-    }
-  } else {
-    const g = WHIP_GEOMETRY[dir];
-    const len = reach * g.scale;
-    const base = (g.angle * Math.PI) / 180;
-    const shapes = [
-      { ext: 0.55, wave: 5, sag: 0 },
-      { ext: 1, wave: 1.2, sag: 0 },
-      { ext: 1, wave: 0, sag: 4 },
-      { ext: 0.75, wave: 3, sag: 6 },
-      { ext: 0.45, wave: 2, sag: 5 },
-    ];
-    shapes.forEach((sh, f) => {
-      const pts: P[] = [];
-      const n = Math.ceil(len * sh.ext);
-      for (let i = 0; i <= n; i++) {
-        const t = i / Math.max(1, n);
-        const d = t * len * sh.ext;
-        const wave = Math.sin(t * Math.PI * 2 + f) * sh.wave * t;
-        const sag = sh.sag * t * t;
-        const x = g.hand[0] + Math.cos(base) * d - Math.sin(base) * wave;
-        const y = g.hand[1] + Math.sin(base) * d + Math.cos(base) * wave + sag;
-        pts.push([x, y]);
-      }
-      strokes.push({ pts, crack: f === 1 });
-    });
-  }
-  let minX = 0;
-  let minY = 0;
-  let maxX = 0;
-  let maxY = 0;
-  for (const st of strokes) {
-    for (const [x, y] of st.pts) {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  const pad = 6;
-  const ox = Math.ceil(-minX) + pad;
-  const oy = Math.ceil(-minY) + pad;
-  const w = Math.ceil(maxX - minX) + pad * 2 + 1;
-  const h = Math.ceil(maxY - minY) + pad * 2 + 1;
-  const frames = strokes.map((st) => {
-    const b = new PixelBuffer(w, h);
-    const n = st.pts.length;
-    st.pts.forEach(([x, y], i) => {
-      const px = x + ox;
-      const py = y + oy;
-      const tip = i > n * 0.8;
-      if (chain) {
-        const link = Math.floor(i / 2) % 2 === 0;
-        b.set(px, py, link ? S[3] : S[2]);
-        if (!tip) b.set(px, py + 1, link ? S[1] : S[2]);
-        if (link && i % 4 === 0) b.set(px, py - 1, S[4]);
-      } else {
-        b.set(px, py, tip ? L[3] : L[2]);
-        if (i < n * 0.4) b.set(px, py + 1, L[1]);
-      }
-    });
-    if (st.crack) {
-      const [tx, ty] = st.pts[n - 1];
-      const cx = tx + ox;
-      const cy = ty + oy;
-      b.set(cx, cy, PAL.white);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as P[]) b.set(cx + dx, cy + dy, PAL.gold[3]);
-      for (const [dx, dy] of [[2, -2], [-2, 2], [2, 2], [-2, -2]] as P[]) b.set(cx + dx, cy + dy, PAL.white);
-      b.set(cx + 3, cy, PAL.gold[3]);
-      b.set(cx, cy - 3, PAL.gold[3]);
-    }
-    b.outline();
-    return b;
-  });
-  return { frames, originX: ox, originY: oy };
-};
 
 // ── Crimson mist (teleport) ──────────────────────────────────────────────────
 

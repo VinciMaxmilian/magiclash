@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { COMBAT, type AttackDefinition, type FighterState } from '@magiclash/shared';
-import { ANCHOR_X, ANCHOR_Y, ATTACK_ANIMS, CELL, LOOPS, STYLES, type FighterStyle } from './fighterSprite';
+import { CHARACTERS, COMBAT, type AttackDefinition, type FighterState } from '@magiclash/shared';
+import { ANCHOR_X, ANCHOR_Y, ATTACK_ANIMS, CELL, LOOPS, STYLES, framesForCharacter, type FighterStyle, type Pose } from './fighterSprite';
 import { TEAM_RAMPS, type TeamColor } from './palette';
 import { ensureFighterTexture } from './textures';
 import { pixelText } from '../../ui/text';
@@ -16,6 +16,9 @@ export class FighterView {
   private readonly style: FighterStyle;
   private readonly bodyH: number;
   private landTicks = 0;
+  /** Pose of every frame name (the whip rope needs the hand position of the frame on screen). */
+  private readonly poses: Map<string, Pose>;
+  private frameName = 'idle_0';
   private flashTicks = 0;
 
   constructor(
@@ -27,6 +30,7 @@ export class FighterView {
   ) {
     this.style = STYLES[characterId];
     this.bodyH = bodyH;
+    this.poses = new Map(framesForCharacter(this.style, CHARACTERS[characterId].attacks.map((a) => a.anim)).map((f) => [f.name, f.pose]));
     const key = ensureFighterTexture(scene, characterId, team);
     this.shadow = scene.add.image(0, 0, 'shadow').setAlpha(0.45).setDepth(9);
     this.sprite = scene.add.image(0, 0, key, 'idle_0').setDepth(10);
@@ -102,7 +106,8 @@ export class FighterView {
     this.tag.setVisible(alive);
     if (!alive) return;
 
-    this.sprite.setFrame(this.frameFor(f, attack, t));
+    this.frameName = this.frameFor(f, attack, t);
+    this.sprite.setFrame(this.frameName);
     this.sprite.setFlipX(f.facing < 0);
 
     const jitter = f.hitlag > 0 && f.state === 'hitstun' ? (t % 2 === 0 ? 1 : -1) : 0;
@@ -131,6 +136,11 @@ export class FighterView {
     else if (f.state === 'dodge') alpha = 0.55;
     else if (f.invuln > 0 && Math.floor(t / 4) % 2 === 0) alpha = 0.45;
     this.sprite.setAlpha(alpha);
+  }
+
+  /** Pose of the frame currently shown. */
+  get pose(): Pose | undefined {
+    return this.poses.get(this.frameName);
   }
 
   destroy(): void {

@@ -237,6 +237,29 @@ const HEAD_SUMMONER = [
   '.h......',
 ];
 
+/** Front shoulder and hand in cell coordinates (shared by the sprite and the whip rope). */
+const frontArm = (p: Required<KnightPose>, z: FighterStyle['size']): { top: V2; hip: V2; fShoulder: V2; fHand: V2 } => {
+  const hip: V2 = [ANCHOR_X + p.hip[0], ANCHOR_Y + p.hip[1] + z.hipDy];
+  const top: V2 = [hip[0] + p.lean, hip[1] - z.torsoH];
+  const fShoulder: V2 = [top[0] + 1, top[1] + 1];
+  const armLen = z.upper + z.fore;
+  const fHand: V2 = [
+    fShoulder[0] + Math.cos(rad(p.fArm[0])) * p.fArm[1] * armLen,
+    fShoulder[1] + Math.sin(rad(p.fArm[0])) * p.fArm[1] * armLen,
+  ];
+  return { top, hip, fShoulder, fHand };
+};
+
+/**
+ * Tip of the whip handle for a pose, relative to the feet anchor, facing right. The rope
+ * (render/WhipView) hangs from here, so it always leaves the sprite's hand.
+ */
+export const whipHandleTip = (pose: Pose, style: FighterStyle): V2 => {
+  const p = { ...DEFAULT, ...pose };
+  const { fHand } = frontArm(p, style.size);
+  return [fHand[0] + Math.cos(rad(p.sword)) * 4 - ANCHOR_X, fHand[1] + Math.sin(rad(p.sword)) * 4 - ANCHOR_Y];
+};
+
 export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): PixelBuffer => {
   const p = { ...DEFAULT, ...pose };
   const z = style.size;
@@ -253,16 +276,13 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
   const ax = ANCHOR_X;
   const ay = ANCHOR_Y;
 
-  const hip: V2 = [ax + p.hip[0], ay + p.hip[1] + z.hipDy];
-  const top: V2 = [hip[0] + p.lean, hip[1] - z.torsoH];
-  const fShoulder: V2 = [top[0] + 1, top[1] + 1];
+  const { hip, top, fShoulder, fHand } = frontArm(p, z);
   const bShoulder: V2 = [top[0] - 2, top[1] + 1];
   const armLen = z.upper + z.fore;
   const hand = (sh: V2, arm: V2): V2 => [
     sh[0] + Math.cos(rad(arm[0])) * arm[1] * armLen,
     sh[1] + Math.sin(rad(arm[0])) * arm[1] * armLen,
   ];
-  const fHand = hand(fShoulder, p.fArm);
   const wd: V2 = [Math.cos(rad(p.sword)), Math.sin(rad(p.sword))];
   const perp: V2 = [-wd[1], wd[0]];
   const hasWeapon = !p.noWeapon;

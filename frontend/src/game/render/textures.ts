@@ -44,17 +44,9 @@ import {
   pillarFrames,
   runeDiscFrames,
   turtleFrames,
-  whipFrames,
-  type WhipDir,
 } from './season1Sprites';
 import { FONT_CHARS, GLYPH_H, GLYPH_W, glyphRows } from '../../ui/pixelFont';
 
-/** Whip reach (px) per whip wielder; the heavy crack reaches further. */
-export const WHIPS: Record<string, { reach: number; heavy: number; chain: boolean }> = {
-  hunter: { reach: 56, heavy: 66, chain: true },
-  brawler: { reach: 44, heavy: 50, chain: false },
-};
-const WHIP_DIRS: WhipDir[] = ['side', 'up', 'low', 'heavy', 'air_up', 'air_down', 'spin'];
 
 /**
  * Generates every placeholder texture at boot (≈ tens of ms). Frame names are the contract
@@ -247,11 +239,6 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'fx_smoke', smokeFrames());
 
   // ── Temporada 1 ──
-  for (const [id, w] of Object.entries(WHIPS)) {
-    for (const dir of WHIP_DIRS) {
-      addEffect(scene, `fx_whip_${id}_${dir}`, whipFrames(dir, dir === 'heavy' ? w.heavy : w.reach, w.chain));
-    }
-  }
   addEffect(scene, 'fx_mist', mistFrames());
   addEffect(scene, 'fx_bat', batFrames());
   addEffect(scene, 'fx_feather', featherFrames());

@@ -160,7 +160,8 @@ Para trocar um fundo: substitua o bruto em `assets-raw/higgsfield/` e rode
 
 | Asset | Origem | Ferramenta/prompt | Status |
 |---|---|---|---|
-| Temporada 1: 5 lutadores, chicotes, névoa, facas, magia azul, fogo infernal, animais invocados | procedural | `render/fighterSprite.ts`, `render/season1Sprites.ts` | em uso (placeholder) |
+| Chicotes (Caçador, Lutador): corda com física verlet presa à mão; ondula, estala e se arrasta no chão | procedural em tempo real | `render/WhipView.ts` (só visual; hitboxes nos dados) | em uso |
+| Temporada 1: 5 lutadores, névoa, facas, magia azul, fogo infernal, animais invocados | procedural | `render/fighterSprite.ts`, `render/season1Sprites.ts` | em uso (placeholder) |
 | Temporada 1: Salão do Trono, Biblioteca dos Caçadores | procedural (Higgsfield falhou; fundo pintado pode vir depois) | `maps/throneHallArt.ts`, `maps/huntersLibraryArt.ts` | em uso (placeholder) |
 | Efeitos de impacto, fumaça, onda de choque | procedural | `render/effectSprites.ts` | em uso |
 | Fundos pintados dos 6 mapas + arte do título | Higgsfield `z_image`, 2048×1152, 2026-09-24 (brutos em `assets-raw/higgsfield/`; prompts no histórico do Higgsfield: "16-bit pixel art video game background, side-scrolling fighting game stage backdrop, far distance only…") | `tools/process_backdrops.py`: reduz para 640×360 + margem de parallax, quantiza para a paleta mestre com dither 2×2 → `frontend/src/assets/backdrops/` | em uso |

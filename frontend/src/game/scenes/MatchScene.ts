@@ -17,11 +17,11 @@ import type { JoinInfo } from '../../services/online';
 import { svc } from '../services';
 import { StageView } from '../maps/StageView';
 import { FighterView } from '../render/FighterView';
+import { WhipView } from '../render/WhipView';
 import { ProjectileViews } from '../render/ProjectileView';
 import { EffectManager } from '../effects/EffectManager';
 import { SLASHES } from '../render/effectSprites';
 import { BLOOD, DARK, HELL } from '../render/season1Sprites';
-import { EFFECT_ORIGINS } from '../render/textures';
 import { PAL, TEAM_RAMPS, type TeamColor } from '../render/palette';
 import { ensurePanel } from '../render/textures';
 import { publicAvatarUrl } from '../render/avatars';
@@ -110,6 +110,8 @@ export class MatchScene extends Phaser.Scene {
   private bots: BotController[] = [];
   private human = -1;
   private views: FighterView[] = [];
+  /** Whip ropes, per fighter (null for fighters without a whip). */
+  private whips: (WhipView | null)[] = [];
   private projectiles!: ProjectileViews;
   private fx!: EffectManager;
   private stageView!: StageView;
@@ -206,6 +208,15 @@ export class MatchScene extends Phaser.Scene {
     this.views = this.setup.slots.map(
       (sl, i) => new FighterView(this, sl.characterId, sl.color, sl.label, this.sim.characterOf(this.sim.state.fighters[i]).body.h),
     );
+    this.whips = this.setup.slots.map((sl) =>
+      WhipView.wields(sl.characterId)
+        ? new WhipView(this, sl.characterId, (x, y, heavy) => {
+            // The crack: a bright snap at the tip.
+            this.fx.spawn(heavy ? 'fx_impact' : 'fx_spark', x, y, { frameTicks: 2, depth: 26, tint: PAL.gold[3], alpha: heavy ? 1 : 0.66 });
+            this.fx.burst(x, y, heavy ? 6 : 3, [PAL.white, PAL.gold[3]], { speed: 1.6, life: 10, gravity: 0 });
+          })
+        : null,
+    );
     this.prev = this.sim.state.fighters.map((f) => ({ x: f.x, y: f.y }));
     this.hud = new Hud(
       this,
@@ -247,6 +258,7 @@ export class MatchScene extends Phaser.Scene {
       this.debug = undefined;
       this.indicators = [];
       this.views = [];
+      this.whips = [];
     });
   }
 
@@ -507,8 +519,7 @@ export class MatchScene extends Phaser.Scene {
     const slashId = SLASHES[effect] ? effect : darkSlash;
     const slash = slashId ? SLASHES[slashId] : undefined;
     if (effect.startsWith('whip_')) {
-      const key = `fx_whip_${f.characterId}_${effect.slice(5)}`;
-      if (EFFECT_ORIGINS.has(key)) this.fx.spawn(key, f.x, f.y, { flip: f.facing < 0, follow, frameTicks: effect === 'whip_spin' ? 3 : 2, depth: 24 });
+      // The lash itself is the rope (render/WhipView); here only the weight of the big ones.
       if (effect === 'whip_heavy' || effect === 'whip_spin') this.fx.shake(2, 6);
     } else if (slash && slashId) {
       this.fx.spawn(`fx_${slashId}`, f.x, f.y, { flip: f.facing < 0, follow, dx: slash.ox, dy: slash.oy, frameTicks: 2, tint });
@@ -729,7 +740,10 @@ export class MatchScene extends Phaser.Scene {
         c.x *= k;
         c.y *= k;
       }
-      this.views[i].update(f, x, y, this.sim.attackOf(f), t);
+      const atk = this.sim.attackOf(f);
+      this.views[i].update(f, x, y, atk, t);
+      const sp = this.views[i].sprite;
+      this.whips[i]?.update(f, atk, sp.x - (f.facing < 0 ? 1 : 0), sp.y, this.views[i].pose, dtTicks);
     });
     this.projectiles.update(this.sim, t);
     this.fx.update(dtTicks);
