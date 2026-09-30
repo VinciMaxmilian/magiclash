@@ -846,4 +846,310 @@ export const SUMMONER: CharacterDefinition = {
   },
 };
 
-export const SEASON1_CHARACTERS = [HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER] as const;
+// ── ANCIÃO ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Caçador veterano que funde o chicote com magia elemental: chama sagrada, leque de cristais,
+ * pilar de trovão e um círculo arcano de curta distância. Mais lento e mais pesado, mas cada
+ * feitiço vale muito.
+ */
+export const ELDER: CharacterDefinition = {
+  ...HUNTER,
+  id: 'elder',
+  name: 'Ancião',
+  class: 'elder',
+  description: 'Caçador veterano que funde o chicote com magias elementais: fogo sagrado, cristais e trovão.',
+  preferredRange: 'mid',
+  weight: 1.08,
+  moveSpeed: 2.7,
+  airSpeed: 2.3,
+  jumpForce: 7.1,
+  dodge: { duration: 22, invulnFrom: 2, invulnTo: 14, speed: 4.4, decay: 0.9, groundCooldown: 46, airCooldown: 42 },
+  projectiles: [
+    {
+      id: 'sacred_flame', w: 12, h: 12, speed: 4.8, angle: 0, gravity: 0, lifetime: 60,
+      damage: 6, knockback: { base: 3.0, growth: 4.2, angle: 34 },
+      onStage: 'explode', explodeOnHit: true,
+      explosion: { w: 30, h: 30, damage: 3, knockback: { base: 3.0, growth: 3.2, angle: 50 }, ticks: 5 },
+      sprite: 'sacred_flame', hitEffect: 'explosion', sound: 'fire',
+    },
+    {
+      id: 'spell_crystal', w: 10, h: 6, speed: 6.6, angle: 0, gravity: 0, lifetime: 44,
+      damage: 5, knockback: { base: 2.8, growth: 3.6, angle: 28 }, status: { kind: 'slow', ticks: 60, factor: 0.7 },
+      onStage: 'destroy', sprite: 'ice_shard', hitEffect: 'frost', sound: 'ice',
+    },
+    {
+      id: 'thunder_tome', w: 20, h: 120, speed: 0, angle: 0, gravity: 0, lifetime: 12,
+      damage: 11, knockback: { base: 4.4, growth: 6.8, angle: 82 }, pierce: 99, hitstopBonus: 2, hitstunMultiplier: 1.3,
+      onStage: 'pass', grounded: true, sprite: 'thunderstrike', hitEffect: 'shock', sound: 'thunder',
+    },
+  ],
+  attacks: [
+    ...whipSet(50, 0, 6),
+    {
+      id: 'sacred_flame_cast', name: 'Chama Sagrada', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 8, active: 1, recovery: 14, cooldown: 20, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'sacred_flame', frame: 9, x: 14, y: -24 }],
+      effect: 'none', sound: 'cast', anim: 'cast_forward',
+    },
+    {
+      id: 'crystal_fan', name: 'Leque de Cristais', direction: 'neutral', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 14, active: 1, recovery: 20, cooldown: 55, range: 'long',
+      hitboxes: [],
+      projectiles: [
+        { id: 'spell_crystal', frame: 14, x: 14, y: -20, angle: -10 },
+        { id: 'spell_crystal', frame: 14, x: 14, y: -24, angle: 0 },
+        { id: 'spell_crystal', frame: 14, x: 14, y: -28, angle: 10 },
+      ],
+      charge: { frame: 10, maxTicks: 45, damage: 1.7, knockback: 1.6, speed: 1.3 },
+      effect: 'none', sound: 'cast', anim: 'cast_charge',
+    },
+    {
+      id: 'thunder_tome_cast', name: 'Tomo do Trovão', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 17, active: 1, recovery: 22, cooldown: 60, range: 'medium',
+      hitboxes: [], projectiles: [{ id: 'thunder_tome', frame: 17, x: 60, y: -10 }],
+      effect: 'none', sound: 'cast', anim: 'cast_ground',
+    },
+    {
+      id: 'arcane_circle', name: 'Círculo Arcano', direction: 'down', aerial: false,
+      damage: 10, knockback: { base: 4.4, growth: 6.2, angle: 60 },
+      startup: 13, active: 5, recovery: 24, cooldown: 60, range: 'short',
+      hitboxes: [{ x: -34, y: -42, w: 68, h: 44 }], friction: 0.6, hitstopBonus: 2,
+      effect: 'arcane_burst', sound: 'arcane_heavy', anim: 'cast_burst',
+    },
+    {
+      id: 'arcane_ascent', name: 'Ascensão Arcana', direction: 'up', aerial: false,
+      damage: 6, knockback: { base: 3.6, growth: 4.4, angle: 80 },
+      startup: 6, active: 10, recovery: 20, cooldown: 20, range: 'short',
+      hitboxes: [{ x: -10, y: -40, w: 22, h: 40 }], movement: [{ frame: 6, vx: 1.6, vy: -9.4 }],
+      recoveryMove: true, landingLag: 10,
+      effect: 'arcane_trail', sound: 'arcane', anim: 'cast_up',
+    },
+    {
+      id: 'air_sacred_flame', name: 'Chama Sagrada Aérea', direction: 'side', aerial: true,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 9, active: 1, recovery: 14, cooldown: 24, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'sacred_flame', frame: 9, x: 14, y: -22 }], landingLag: 6, gravityScale: 0.5,
+      effect: 'none', sound: 'cast', anim: 'air_cast',
+    },
+    {
+      id: 'elder_drop', name: 'Queda do Ancião', direction: 'down', aerial: true,
+      damage: 10, knockback: { base: 4.2, growth: 6.0, angle: 55 },
+      startup: 10, active: 40, recovery: 18, cooldown: 30, range: 'short',
+      hitboxes: [{ x: -10, y: -10, w: 22, h: 18 }],
+      movement: [{ frame: 0, vx: 0, vy: -2 }, { frame: 10, vx: 0, vy: 10 }],
+      gravityScale: 0.3, untilLanding: true, landingLag: 16, hitstopBonus: 2,
+      effect: 'arcane_trail', sound: 'arcane_heavy', anim: 'air_stomp',
+    },
+  ],
+  moveset: {
+    ...whipMoveset,
+    side_light: 'sacred_flame_cast',
+    neutral_heavy: 'crystal_fan',
+    side_heavy: 'thunder_tome_cast',
+    down_heavy: 'arcane_circle',
+    up_heavy: 'arcane_ascent',
+    air_neutral_heavy: 'air_sacred_flame',
+    air_side_heavy: 'air_sacred_flame',
+    air_up_heavy: 'arcane_ascent',
+    air_down_heavy: 'elder_drop',
+  },
+};
+
+// ── GEOMANTE ────────────────────────────────────────────────────────────────────
+
+const STONE_KB = { base: 3.2, growth: 4.4, angle: 40 };
+
+/**
+ * Feiticeira da terra: arremessa pedras, ergue uma muralha que bloqueia projéteis inimigos,
+ * faz espinhos brotarem do chão e solta um rochedo que rola pelo palco. Golpes de perto com
+ * manoplas de pedra.
+ */
+export const GEOMANCER: CharacterDefinition = {
+  id: 'geomancer',
+  name: 'Geomante',
+  class: 'geomancer',
+  description: 'Feiticeira da terra: pedras, muralha que bloqueia projéteis, espinhos do chão e rochedo rolante.',
+  preferredRange: 'mid',
+  weight: 1.04,
+  hitstunMultiplier: 0.95,
+  moveSpeed: 2.6,
+  groundAccel: 0.52,
+  groundFriction: 0.52,
+  airSpeed: 2.4,
+  airAccel: 0.24,
+  airFriction: 0.04,
+  jumpForce: 7.3,
+  airJumpForce: 6.5,
+  maxAirJumps: 2,
+  jumpCutMultiplier: 0.5,
+  gravity: 0.31,
+  maxFallSpeed: 5.0,
+  fastFallSpeed: 7.8,
+  body: { w: 14, h: 31 },
+  hurtboxes: [
+    { x: -7, y: -29, w: 14, h: 29 },
+    { x: -5, y: -35, w: 10, h: 7 },
+  ],
+  dodge: { duration: 22, invulnFrom: 2, invulnTo: 14, speed: 4.6, decay: 0.9, groundCooldown: 45, airCooldown: 40 },
+  projectiles: [
+    {
+      id: 'thrown_stone', w: 12, h: 12, speed: 5.4, angle: 16, gravity: 0.16, lifetime: 70,
+      damage: 7, knockback: STONE_KB, onStage: 'destroy', sprite: 'stone', hitEffect: 'rubble', sound: 'thud',
+    },
+    {
+      id: 'stone_wall', w: 18, h: 44, speed: 0, angle: 0, gravity: 0, lifetime: 150,
+      damage: 4, knockback: { base: 3.6, growth: 2.6, angle: 70 }, pierce: 99, rehitInterval: 40,
+      onStage: 'pass', grounded: true, barrier: true, sprite: 'stone_wall', hitEffect: 'rubble', sound: 'quake',
+    },
+    {
+      id: 'earth_spikes', w: 30, h: 24, speed: 0, angle: 0, gravity: 0, lifetime: 22,
+      damage: 7, knockback: { base: 3.8, growth: 5.2, angle: 76 }, pierce: 99,
+      onStage: 'pass', grounded: true, sprite: 'earth_spikes', hitEffect: 'rubble', sound: 'quake',
+    },
+    {
+      id: 'boulder', w: 24, h: 24, speed: 3.4, angle: 0, gravity: 0, lifetime: 90,
+      damage: 10, knockback: { base: 4.4, growth: 6.6, angle: 38 }, pierce: 3, hitstopBonus: 2,
+      onStage: 'pass', grounded: true, sprite: 'boulder', hitEffect: 'rubble', sound: 'quake',
+    },
+    {
+      id: 'rising_pillar', w: 20, h: 40, speed: 0, angle: 0, gravity: 0, lifetime: 24,
+      damage: 5, knockback: { base: 3.4, growth: 4.0, angle: 85 }, pierce: 99,
+      onStage: 'pass', grounded: true, sprite: 'rock_pillar', hitEffect: 'rubble', sound: 'quake',
+    },
+  ],
+  attacks: [
+    {
+      id: 'stone_jab', name: 'Soco de Pedra', direction: 'neutral', aerial: false,
+      damage: 4, knockback: { base: 2.4, growth: 0.4, angle: 40 },
+      startup: 4, active: 3, recovery: 11, cooldown: 0, range: 'short',
+      hitboxes: [{ x: 4, y: -26, w: 20, h: 12 }], friction: 0.8,
+      chain: { next: 'stone_smash', from: 5, to: 15 },
+      effect: 'none', sound: 'punch', anim: 'punch',
+    },
+    {
+      id: 'stone_smash', name: 'Martelo de Pedra', direction: 'neutral', aerial: false,
+      damage: 7, knockback: { base: 4.2, growth: 5.0, angle: 40 },
+      startup: 7, active: 4, recovery: 18, cooldown: 12, range: 'short',
+      hitboxes: [{ x: 2, y: -30, w: 26, h: 22 }], movement: [{ frame: 4, vx: 1.8 }], friction: 0.85, hitstopBonus: 1,
+      effect: 'earth_burst', sound: 'punch', anim: 'punch_heavy',
+    },
+    {
+      id: 'stone_throw', name: 'Pedra Arremessada', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 10, active: 1, recovery: 16, cooldown: 26, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'thrown_stone', frame: 10, x: 12, y: -28 }],
+      effect: 'none', sound: 'toss', anim: 'throw',
+    },
+    {
+      id: 'rock_uppercut', name: 'Punho da Montanha', direction: 'up', aerial: false,
+      damage: 7, knockback: { base: 3.8, growth: 4.8, angle: 82 },
+      startup: 6, active: 5, recovery: 15, cooldown: 8, range: 'short',
+      hitboxes: [{ x: -4, y: -52, w: 24, h: 32 }], friction: 0.8,
+      effect: 'earth_burst', sound: 'punch', anim: 'uppercut',
+    },
+    {
+      id: 'ground_slap', name: 'Tremor Rasteiro', direction: 'down', aerial: false,
+      damage: 6, knockback: { base: 3.0, growth: 3.6, angle: 30 },
+      startup: 6, active: 4, recovery: 14, cooldown: 8, range: 'short',
+      hitboxes: [{ x: -6, y: -10, w: 40, h: 10 }], friction: 0.8,
+      effect: 'earth_burst', sound: 'quake', anim: 'cast_ground',
+    },
+    {
+      id: 'boulder_cast', name: 'Rochedo', direction: 'neutral', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 16, active: 1, recovery: 22, cooldown: 65, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'boulder', frame: 16, x: 18, y: -12 }],
+      charge: { frame: 11, maxTicks: 50, damage: 1.7, knockback: 1.6, speed: 1.4 },
+      effect: 'none', sound: 'cast', anim: 'cast_charge',
+    },
+    {
+      id: 'stone_wall_cast', name: 'Muralha de Pedra', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 12, active: 1, recovery: 18, cooldown: 90, range: 'short',
+      hitboxes: [], projectiles: [{ id: 'stone_wall', frame: 12, x: 30, y: -10 }],
+      effect: 'none', sound: 'cast', anim: 'cast_ground',
+    },
+    {
+      id: 'earth_spikes_cast', name: 'Espinhos da Terra', direction: 'down', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 13, active: 1, recovery: 24, cooldown: 60, range: 'medium',
+      hitboxes: [],
+      projectiles: [
+        { id: 'earth_spikes', frame: 13, x: 34, y: -10 },
+        { id: 'earth_spikes', frame: 18, x: 62, y: -10 },
+        { id: 'earth_spikes', frame: 23, x: 90, y: -10 },
+      ],
+      effect: 'none', sound: 'cast', anim: 'cast_ground',
+    },
+    {
+      id: 'pillar_rise', name: 'Pilar Ascendente', direction: 'up', aerial: false,
+      damage: 5, knockback: { base: 3.4, growth: 4.0, angle: 80 },
+      startup: 5, active: 10, recovery: 20, cooldown: 20, range: 'short',
+      hitboxes: [{ x: -10, y: -40, w: 22, h: 40 }], movement: [{ frame: 5, vx: 1.6, vy: -9.4 }],
+      projectiles: [{ id: 'rising_pillar', frame: 5, x: 0, y: -4 }],
+      recoveryMove: true, landingLag: 10,
+      effect: 'earth_trail', sound: 'quake', anim: 'leap',
+    },
+    {
+      id: 'air_stone', name: 'Pedra Aérea', direction: 'side', aerial: true,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 9, active: 1, recovery: 14, cooldown: 26, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'thrown_stone', frame: 9, x: 12, y: -26 }], landingLag: 6, gravityScale: 0.5,
+      effect: 'none', sound: 'toss', anim: 'throw',
+    },
+    {
+      id: 'air_stone_fist', name: 'Punho Aéreo', direction: 'up', aerial: true,
+      damage: 6, knockback: { base: 3.4, growth: 4.4, angle: 84 },
+      startup: 5, active: 5, recovery: 13, cooldown: 6, range: 'short',
+      hitboxes: [{ x: -6, y: -54, w: 22, h: 28 }], landingLag: 6,
+      effect: 'earth_burst', sound: 'punch', anim: 'uppercut',
+    },
+    {
+      id: 'air_kick_stone', name: 'Chute de Pedra', direction: 'neutral', aerial: true,
+      damage: 6, knockback: { base: 3.0, growth: 4.0, angle: 36 },
+      startup: 5, active: 5, recovery: 12, cooldown: 2, range: 'short',
+      hitboxes: [{ x: 2, y: -26, w: 22, h: 14 }], landingLag: 5,
+      effect: 'none', sound: 'punch', anim: 'air_kick',
+    },
+    {
+      id: 'meteor_stone', name: 'Pedra Meteoro', direction: 'down', aerial: true,
+      damage: 7, knockback: { base: 3.0, growth: 4.4, angle: -60 },
+      startup: 8, active: 6, recovery: 14, cooldown: 8, range: 'short',
+      hitboxes: [{ x: -7, y: -6, w: 16, h: 20 }], landingLag: 10,
+      effect: 'earth_trail', sound: 'punch', anim: 'air_stomp',
+    },
+    {
+      id: 'landslide', name: 'Deslizamento', direction: 'down', aerial: true,
+      damage: 12, knockback: { base: 4.6, growth: 6.4, angle: 55 },
+      startup: 12, active: 40, recovery: 20, cooldown: 30, range: 'short',
+      hitboxes: [{ x: -14, y: -12, w: 28, h: 20 }],
+      movement: [{ frame: 0, vx: 0, vy: -2 }, { frame: 12, vx: 0, vy: 10 }],
+      gravityScale: 0.3, untilLanding: true, landingLag: 18, hitstopBonus: 2,
+      effect: 'earth_trail', sound: 'quake', anim: 'plunge',
+    },
+  ],
+  moveset: {
+    neutral_light: 'stone_jab',
+    side_light: 'stone_throw',
+    up_light: 'rock_uppercut',
+    down_light: 'ground_slap',
+    neutral_heavy: 'boulder_cast',
+    side_heavy: 'stone_wall_cast',
+    down_heavy: 'earth_spikes_cast',
+    up_heavy: 'pillar_rise',
+    air_neutral_light: 'air_kick_stone',
+    air_side_light: 'air_stone',
+    air_up_light: 'air_stone_fist',
+    air_down_light: 'meteor_stone',
+    air_neutral_heavy: 'air_stone',
+    air_side_heavy: 'air_stone',
+    air_up_heavy: 'pillar_rise',
+    air_down_heavy: 'landslide',
+  },
+};
+
+export const SEASON1_CHARACTERS = [HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER, ELDER, GEOMANCER] as const;

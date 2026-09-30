@@ -340,3 +340,114 @@ export const turtleFrames = (): EffectSheet => {
     }),
   );
 };
+
+// ── Earth magic (geomancer) and the elder's sacred flame ──────────────────────────
+
+export const EARTH: Ramp = [PAL.stone[0], PAL.stone[1], PAL.stone[2], PAL.stone[3], PAL.stone[4]];
+export const SACRED: Ramp = [PAL.gold[0], PAL.gold[1], PAL.gold[2], PAL.gold[3], PAL.sky[6]];
+
+/** Lumpy rock rotating in 4 steps (thrown stone, rolling boulder). */
+export const stoneFrames = (size: number): EffectSheet => {
+  const S = EARTH;
+  const c = size / 2;
+  const r = size / 2 - 2;
+  return centered(
+    [0, 1, 2, 3].map((f) => {
+      const b = new PixelBuffer(size, size);
+      const rot = (f * Math.PI) / 2;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const dx = x + 0.5 - c;
+          const dy = y + 0.5 - c;
+          const a = Math.atan2(dy, dx) - rot;
+          const lump = r * (0.82 + 0.18 * Math.sin(a * 3) + 0.08 * Math.cos(a * 5));
+          const d = Math.hypot(dx, dy);
+          if (d > lump) continue;
+          // lit from the upper left
+          const light = (-dx - dy) / (r * 1.6);
+          b.set(x, y, light > 0.35 ? S[4] : light > -0.1 ? S[3] : light > -0.5 ? S[2] : S[1]);
+        }
+      }
+      // cracks that rotate with the rock
+      for (let k = 0; k < 2; k++) {
+        const a = rot + k * 2.1;
+        b.line(c, c, c + Math.cos(a) * r * 0.7, c + Math.sin(a) * r * 0.7, S[1], 1);
+      }
+      b.outline();
+      return b;
+    }),
+  );
+};
+
+/** Stone wall slab rising from the ground: rise, rise, standing, crumbling. */
+export const stoneWallFrames = (w: number, h: number): EffectSheet => {
+  const S = EARTH;
+  return centered(
+    [0.4, 0.8, 1, 0.85].map((k, f) => {
+      const b = new PixelBuffer(w, h);
+      const top = Math.round(h * (1 - k));
+      for (let y = top; y < h; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const jag = y - top < 3 && hashNoise(x, f, 61) > 0.6;
+          if (jag) continue;
+          const row = Math.floor((y - top) / 7);
+          const bx = (x + (row % 2) * 4) % 8;
+          let c = x < 4 ? S[3] : x > w - 5 ? S[1] : S[2];
+          if (bx === 0 || (y - top) % 7 === 0) c = S[0];
+          if (y === top) c = S[4];
+          if (f === 3 && hashNoise(x, y, 62) > 0.8) continue; // crumbling
+          b.set(x, y, c);
+        }
+      }
+      b.outline();
+      return b;
+    }),
+  );
+};
+
+/** A patch of stone spikes bursting out of the ground. */
+export const earthSpikesFrames = (w: number, h: number): EffectSheet => {
+  const S = EARTH;
+  const spikes = [0.14, 0.34, 0.52, 0.7, 0.88];
+  return centered(
+    [0.35, 1, 0.75].map((grow, f) => {
+      const b = new PixelBuffer(w, h);
+      spikes.forEach((sx, i) => {
+        const sh = h * grow * (0.55 + hashNoise(i, 0, 63) * 0.45);
+        const base = 3 + (i % 2);
+        const cx = sx * w;
+        for (let y = 0; y < sh; y++) {
+          const half = base * (1 - y / sh);
+          for (let x = Math.floor(cx - half); x <= cx + half; x++) b.set(x, h - 1 - y, x < cx ? S[3] : S[2]);
+        }
+        b.set(cx, h - sh, S[4]);
+      });
+      // rubble at the base
+      for (let x = 0; x < w; x += 2) if (hashNoise(x, f, 64) > 0.5) b.set(x, h - 1 - (x % 3 === 0 ? 1 : 0), S[1]);
+      b.outline();
+      return b;
+    }),
+  );
+};
+
+/** Column of rock pushing up under the geomancer's feet. */
+export const rockPillarFrames = (w: number, h: number): EffectSheet => {
+  const S = EARTH;
+  return centered(
+    [0.3, 0.7, 1, 0.6].map((k, f) => {
+      const b = new PixelBuffer(w, h);
+      const top = Math.round(h * (1 - k));
+      for (let y = top; y < h; y++) {
+        for (let x = 2; x < w - 2; x++) {
+          let c = x < 6 ? S[3] : x > w - 7 ? S[1] : S[2];
+          if ((y - top) % 9 === 0) c = S[1];
+          if (y === top || y === top + 1) c = S[4];
+          b.set(x, y, c);
+        }
+      }
+      if (f === 3) for (let i = 0; i < 6; i++) b.clear(Math.round(hashNoise(i, 0, 65) * w), top + Math.round(hashNoise(i, 1, 65) * 6));
+      b.outline();
+      return b;
+    }),
+  );
+};

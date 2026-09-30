@@ -21,7 +21,7 @@ import { WhipView } from '../render/WhipView';
 import { ProjectileViews } from '../render/ProjectileView';
 import { EffectManager } from '../effects/EffectManager';
 import { SLASHES } from '../render/effectSprites';
-import { BLOOD, DARK, HELL } from '../render/season1Sprites';
+import { BLOOD, DARK, EARTH, HELL, SACRED } from '../render/season1Sprites';
 import { PAL, TEAM_RAMPS, type TeamColor } from '../render/palette';
 import { ensurePanel } from '../render/textures';
 import { publicAvatarUrl } from '../render/avatars';
@@ -55,7 +55,7 @@ interface NetSession {
   join: JoinInfo;
 }
 
-type Element = 'fire' | 'ice' | 'lightning' | 'steel' | 'arcane' | 'blood' | 'dark' | 'feather';
+type Element = 'fire' | 'ice' | 'lightning' | 'steel' | 'arcane' | 'blood' | 'dark' | 'feather' | 'earth';
 const ELEMENT_RAMP: Record<Element, readonly number[]> = {
   fire: PAL.fire,
   ice: PAL.ice,
@@ -65,6 +65,7 @@ const ELEMENT_RAMP: Record<Element, readonly number[]> = {
   blood: BLOOD,
   dark: DARK,
   feather: [PAL.steel[2], PAL.steel[3], PAL.steel[4], PAL.white, PAL.white],
+  earth: EARTH,
 };
 const CHARACTER_ELEMENT: Record<string, Element> = {
   fire_mage: 'fire',
@@ -72,6 +73,7 @@ const CHARACTER_ELEMENT: Record<string, Element> = {
   lightning_mage: 'lightning',
   vampire: 'dark',
   dhampir: 'blood',
+  geomancer: 'earth',
 };
 
 const elementOfEffect = (effect: string, characterId: string): Element => {
@@ -82,12 +84,15 @@ const elementOfEffect = (effect: string, characterId: string): Element => {
   if (effect.startsWith('blood') || effect === 'teleport') return 'blood';
   if (effect.startsWith('dark') || effect.startsWith('bat')) return 'dark';
   if (effect.startsWith('feather')) return 'feather';
+  if (effect.startsWith('earth')) return 'earth';
   return CHARACTER_ELEMENT[characterId] ?? 'steel';
 };
 
 /** Projectile sprite → trail colors (null = no trail). */
 const trailRamp = (sprite: string): readonly number[] | null => {
   if (sprite.startsWith('hell') || sprite.startsWith('inferno')) return HELL;
+  if (sprite === 'sacred_flame') return SACRED;
+  if (sprite === 'boulder') return EARTH;
   if (sprite.includes('fire') || sprite === 'phoenix') return PAL.fire;
   if (sprite.startsWith('azure') || sprite === 'rune_disc' || sprite === 'dragon' || sprite.includes('ice')) return PAL.ice;
   if (sprite.startsWith('crimson')) return BLOOD;
@@ -567,6 +572,7 @@ export class MatchScene extends Phaser.Scene {
       if (h === 'arcane') return { key: 'fx_spark', element: 'arcane' };
       if (h === 'blood') return { key: 'fx_blood', element: 'blood' };
       if (h === 'feather') return { key: 'fx_feather', element: 'feather' };
+      if (h === 'rubble') return { key: 'fx_spark', element: 'earth' };
       if (h === 'explosion') return { key: 'fx_spark_big', element: 'fire' };
       if (h === 'frost') return { key: 'fx_frost', element: 'ice' };
       if (h === 'shock') return { key: 'fx_shock', element: 'lightning' };
@@ -607,6 +613,10 @@ export class MatchScene extends Phaser.Scene {
         if (element === 'lightning') this.play('zap');
         if (element === 'arcane') this.play('arcane');
         if (element === 'blood') this.play('blood', 1.2);
+        if (element === 'earth') {
+          this.fx.spawn('fx_dust', e.x, e.y + 6, { frameTicks: 3 });
+          this.fx.burst(e.x, e.y, 6, [EARTH[2], EARTH[3], EARTH[1]], { speed: 2, life: 18, gravity: 0.18, size: 2 });
+        }
         if (fighters[e.target].grounded) this.fx.spawn('fx_dust', fighters[e.target].x, fighters[e.target].y, { frameTicks: 3 });
         break;
       }

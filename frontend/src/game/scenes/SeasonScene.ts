@@ -11,12 +11,16 @@ import { defaultSetup } from '../match/setup';
 
 type Tab = 'characters' | 'stages';
 
+const CARD_H: Record<Tab, number> = { characters: 32, stages: 40 };
+
 const CLASS_LABEL: Record<string, string> = {
   hunter: 'CAÇADOR',
   fighter: 'LUTADOR',
   vampire: 'VAMPIRO',
   dhampir: 'MESTIÇO',
   summoner: 'INVOCADORA',
+  elder: 'ANCIÃO',
+  geomancer: 'GEOMANTE',
 };
 
 const STAGE_TEXT: Record<string, { title: string; text: string }> = {
@@ -98,11 +102,12 @@ export class SeasonScene extends Phaser.Scene {
     // Left column: one card per new fighter / map.
     const items = this.tab === 'characters' ? season.characters : season.stages;
     this.cards = items.map((id, i) => {
-      const y = 94 + i * 44;
-      const card = this.add.image(70, y, ensurePanel(this, 104, 40)).setScrollFactor(0).setDepth(10);
+      // Seven fighters: compact rows with 1× portraits; the two maps keep the tall cards.
+      const y = this.tab === 'characters' ? 90 + i * 36 : 94 + i * 44;
+      const card = this.add.image(70, y, ensurePanel(this, 104, CARD_H[this.tab])).setScrollFactor(0).setDepth(10);
       if (this.tab === 'characters') {
-        this.add.image(38, y, `portrait_${id}_red`).setScale(2).setScrollFactor(0).setDepth(11);
-        pixelText(this, 60, y - 4, CHARACTERS[id].name.toUpperCase(), { outline: false, color: PAL.steel[4], depth: 11 });
+        this.add.image(34, y, `portrait_${id}_red`).setScrollFactor(0).setDepth(11);
+        pixelText(this, 50, y - 4, CHARACTERS[id].name.toUpperCase(), { outline: false, color: PAL.steel[4], depth: 11 });
       } else {
         pixelText(this, 26, y - 4, STAGE_TEXT[id]?.title ?? STAGES[id].name, { outline: false, color: PAL.steel[4], depth: 11 });
       }
@@ -144,7 +149,7 @@ export class SeasonScene extends Phaser.Scene {
     this.tabTexts.forEach((t, i) => t.setTint((i === 0) === (this.tab === 'characters') ? PAL.gold[3] : PAL.stone[4]));
     this.cards.forEach((c, i) => {
       const sel = i === this.index;
-      c.setTexture(ensurePanel(this, 104, 40, sel ? PAL.gold[3] : undefined)).setTint(sel ? 0xffffff : 0xb7c2d6);
+      c.setTexture(ensurePanel(this, 104, CARD_H[this.tab], sel ? PAL.gold[3] : undefined)).setTint(sel ? 0xffffff : 0xb7c2d6);
     });
     const id = this.items[this.index];
     if (this.tab === 'characters') {

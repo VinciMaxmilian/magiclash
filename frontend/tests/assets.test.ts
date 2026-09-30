@@ -15,14 +15,16 @@ const KNOWN_EFFECTS = new Set([
   // Temporada 1
   'whip_side', 'whip_up', 'whip_low', 'whip_heavy', 'whip_air_up', 'whip_air_down', 'whip_spin',
   'dark_slash', 'dark_low', 'dark_trail', 'bat_trail', 'arcane_trail', 'blood_burst', 'feather_trail', 'teleport',
+  'arcane_burst', 'earth_burst', 'earth_trail',
 ]);
 const PROJECTILE_SPRITES = new Set([
   'arrow', 'arrow_heavy', 'axe', 'fireball', 'great_fireball', 'fire_column', 'ice_shard', 'ice_lance',
   'ice_spikes', 'spark_bolt', 'thunder_beam', 'sky_spark', 'ball_lightning', 'thunderstrike',
   'dagger', 'azure_flame', 'azure_orb', 'rune_disc', 'azure_pillar', 'hellflame', 'inferno_orb', 'hell_geyser',
   'crimson_wave', 'dove', 'cat', 'phoenix', 'dragon', 'turtle',
+  'sacred_flame', 'stone', 'boulder', 'stone_wall', 'earth_spikes', 'rock_pillar',
 ]);
-const HIT_EFFECTS = new Set(['spark', 'spark_big', 'explosion', 'frost', 'shock', 'arcane', 'blood', 'feather']);
+const HIT_EFFECTS = new Set(['spark', 'spark_big', 'explosion', 'frost', 'shock', 'arcane', 'blood', 'feather', 'rubble']);
 
 describe('asset contract', () => {
   for (const c of Object.values(CHARACTERS)) {

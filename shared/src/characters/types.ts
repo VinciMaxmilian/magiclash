@@ -18,7 +18,9 @@ export type CharacterClass =
   | 'fighter'
   | 'vampire'
   | 'dhampir'
-  | 'summoner';
+  | 'summoner'
+  | 'elder'
+  | 'geomancer';
 
 export type AttackSlot =
   | 'neutral_light'
@@ -129,6 +131,8 @@ export interface ProjectileDefinition {
   attached?: boolean;
   /** Snaps to the floor below the spawn point (columns, spikes). */
   grounded?: boolean;
+  /** Destroys enemy projectiles that touch it (stone wall). Grounded/attached hazards pass. */
+  barrier?: boolean;
   /** Renderer key and hit effect (cosmetic). */
   sprite: string;
   hitEffect: string;

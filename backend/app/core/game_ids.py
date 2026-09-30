@@ -16,6 +16,8 @@ CharacterId = Literal[
     "vampire",
     "dhampir",
     "summoner",
+    "elder",
+    "geomancer",
 ]
 
 StageId = Literal[

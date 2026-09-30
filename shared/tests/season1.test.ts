@@ -154,6 +154,55 @@ describe('Temporada 1', () => {
     expect(hitsOn(ev, 1).length).toBeGreaterThan(0);
   });
 
+  it('geomancer stone wall swallows enemy projectiles', () => {
+    const sim = duel('geomancer', 'archer');
+    place(sim, 0, -100, 1);
+    place(sim, 1, 60, -1);
+    settle(sim);
+    // wall goes up between them, then the archer shoots into it
+    run(sim, 20, (t) => [t < 2 ? Btn.Heavy | Btn.Right : 0, 0]);
+    expect(sim.state.projectiles.some((p) => p.defId === 'stone_wall')).toBe(true);
+    const ev = run(sim, 50, (t) => [0, t < 2 ? Btn.Light : 0]);
+    expect(ev.some((e) => e.type === 'projectile_spawn' && e.defId === 'arrow')).toBe(true);
+    expect(hitsOn(ev, 0).length).toBe(0);
+    expect(ev.some((e) => e.type === 'projectile_end' && e.defId === 'arrow' && e.reason === 'stage')).toBe(true);
+  });
+
+  it('geomancer earth spikes erupt one after another, farther each time', () => {
+    const sim = duel('geomancer', 'knight');
+    place(sim, 0, -100, 1);
+    place(sim, 1, 150, -1);
+    settle(sim);
+    const ev = run(sim, 40, (t) => [t < 2 ? Btn.Heavy | Btn.Down : 0, 0]);
+    const xs = ev.filter((e) => e.type === 'projectile_spawn' && e.defId === 'earth_spikes').map((e) => (e as { x: number }).x);
+    expect(xs.length).toBe(3);
+    expect(xs[1]).toBeGreaterThan(xs[0]);
+    expect(xs[2]).toBeGreaterThan(xs[1]);
+  });
+
+  it('geomancer boulder rolls along the floor and hits', () => {
+    const sim = duel('geomancer', 'knight');
+    place(sim, 0, -100, 1);
+    place(sim, 1, 30, -1);
+    settle(sim);
+    const ev = run(sim, 80, (t) => [t < 2 ? Btn.Heavy : 0, 0]);
+    expect(ev.some((e) => e.type === 'projectile_spawn' && e.defId === 'boulder')).toBe(true);
+    expect(hitsOn(ev, 1).length).toBeGreaterThan(0);
+  });
+
+  it('elder lashes with the whip and casts the thunder tome', () => {
+    const sim = duel('elder', 'knight');
+    place(sim, 0, -40, 1);
+    place(sim, 1, 16, -1);
+    settle(sim);
+    expect(hitsOn(run(sim, 40, (t) => [t < 2 ? Btn.Light : 0, 0]), 1).length).toBe(1);
+    place(sim, 0, -60, 1);
+    place(sim, 1, 0, -1);
+    settle(sim);
+    const ev = run(sim, 60, (t) => [t < 2 ? Btn.Heavy | Btn.Right : 0, 0]);
+    expect(ev.some((e) => e.type === 'projectile_spawn' && e.defId === 'thunder_tome')).toBe(true);
+  });
+
   it('new stages load and fighters stand on them', () => {
     for (const stageId of SEASONS[0].stages) {
       const sim = duel('summoner', 'vampire', stageId);

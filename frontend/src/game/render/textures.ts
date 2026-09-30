@@ -31,6 +31,11 @@ import {
 } from './effectSprites';
 import {
   HELL,
+  SACRED,
+  earthSpikesFrames,
+  rockPillarFrames,
+  stoneFrames,
+  stoneWallFrames,
   batFrames,
   bloodHitFrames,
   catFrames,
@@ -257,6 +262,12 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'proj_phoenix', phoenixFrames());
   addEffect(scene, 'proj_dragon', dragonFrames());
   addEffect(scene, 'proj_turtle', turtleFrames());
+  addEffect(scene, 'proj_sacred_flame', orbFrames(16, SACRED, true));
+  addEffect(scene, 'proj_stone', stoneFrames(14));
+  addEffect(scene, 'proj_boulder', stoneFrames(28));
+  addEffect(scene, 'proj_stone_wall', stoneWallFrames(20, 46));
+  addEffect(scene, 'proj_earth_spikes', earthSpikesFrames(32, 26));
+  addEffect(scene, 'proj_rock_pillar', rockPillarFrames(22, 42));
 
   const px = new PixelBuffer(1, 1);
   px.set(0, 0, PAL.white);

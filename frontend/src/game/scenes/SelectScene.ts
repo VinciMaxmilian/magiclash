@@ -103,11 +103,11 @@ export class SelectScene extends Phaser.Scene {
 
     pixelText(this, 320, 8, 'ESCOLHA SEU LUTADOR', { scale: 2, align: 'center', color: PAL.gold[3], depth: 10 });
 
-    // Character cards (4 × 3). Season content carries a small gold "T1" badge.
+    // Character cards (5 × 3). Season content carries a small gold "T1" badge.
     const seasonOf = new Map(SEASONS.flatMap((se) => se.characters.map((ch) => [ch, se.id] as const)));
     this.cards = CHARACTER_ORDER.map((id, i) => {
-      const x = 34 + (i % 4) * 46;
-      const y = 50 + Math.floor(i / 4) * 48;
+      const x = 30 + (i % 5) * 46;
+      const y = 50 + Math.floor(i / 5) * 48;
       const frame = this.add.image(x, y, ensurePanel(this, CARD_W, CARD_H)).setScrollFactor(0).setDepth(10);
       const portrait = this.add.image(x, y - 1, `portrait_${id}_blue`).setScale(2).setScrollFactor(0).setDepth(11);
       const season = seasonOf.get(id);

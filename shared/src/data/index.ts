@@ -12,7 +12,7 @@ import { ANCIENT_RUINS } from './stages/ancientRuins';
 import { VOLCANIC_KEEP } from './stages/volcanicKeep';
 import { THRONE_HALL } from './stages/throneHall';
 import { HUNTERS_LIBRARY } from './stages/huntersLibrary';
-import { BRAWLER, DHAMPIR, HUNTER, SUMMONER, VAMPIRE } from './characters/season1';
+import { BRAWLER, DHAMPIR, ELDER, GEOMANCER, HUNTER, SUMMONER, VAMPIRE } from './characters/season1';
 
 export const CHARACTERS: Readonly<Record<string, CharacterDefinition>> = {
   [KNIGHT.id]: KNIGHT,
@@ -26,13 +26,15 @@ export const CHARACTERS: Readonly<Record<string, CharacterDefinition>> = {
   [VAMPIRE.id]: VAMPIRE,
   [DHAMPIR.id]: DHAMPIR,
   [SUMMONER.id]: SUMMONER,
+  [ELDER.id]: ELDER,
+  [GEOMANCER.id]: GEOMANCER,
 };
 
 /** Display order in character select. */
 export const CHARACTER_ORDER = [
   'knight', 'barbarian', 'archer', 'fire_mage', 'ice_mage', 'lightning_mage',
   // Temporada 1
-  'hunter', 'brawler', 'vampire', 'dhampir', 'summoner',
+  'hunter', 'brawler', 'vampire', 'dhampir', 'summoner', 'elder', 'geomancer',
 ] as const;
 
 export const STAGES: Readonly<Record<string, StageDefinition>> = {
@@ -69,4 +71,4 @@ export const getStage = (id: string): StageDefinition => {
   return s;
 };
 
-export { KNIGHT, BARBARIAN, ARCHER, FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE, CASTLE_COURTYARD, ENCHANTED_FOREST, FROZEN_FORTRESS, WIZARD_TOWER, ANCIENT_RUINS, VOLCANIC_KEEP, THRONE_HALL, HUNTERS_LIBRARY, HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER };
+export { KNIGHT, BARBARIAN, ARCHER, FIRE_MAGE, ICE_MAGE, LIGHTNING_MAGE, CASTLE_COURTYARD, ENCHANTED_FOREST, FROZEN_FORTRESS, WIZARD_TOWER, ANCIENT_RUINS, VOLCANIC_KEEP, THRONE_HALL, HUNTERS_LIBRARY, HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER, ELDER, GEOMANCER };

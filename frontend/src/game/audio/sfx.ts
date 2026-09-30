@@ -55,7 +55,8 @@ export type SfxId =
   | 'summon'
   | 'coo'
   | 'meow'
-  | 'roar';
+  | 'roar'
+  | 'quake';
 
 type Synth = (ctx: AudioContext, out: AudioNode, noise: AudioBuffer, t: number, pitch: number) => void;
 
@@ -271,6 +272,11 @@ export const SFX: Record<SfxId, Synth> = {
   roar: (c, o, n, t, p) => {
     noiseBurst(c, o, n, t, { type: 'lowpass', from: 700 * p, to: 200, peak: 0.5, attack: 0.05, decay: 0.45 });
     tone(c, o, t, { type: 'sawtooth', from: 110 * p, to: 70, peak: 0.12, attack: 0.05, decay: 0.4 });
+  },
+  quake: (c, o, n, t, p) => {
+    noiseBurst(c, o, n, t, { type: 'lowpass', from: 500 * p, to: 60, peak: 0.6, attack: 0.02, decay: 0.35 });
+    tone(c, o, t, { type: 'sine', from: 70 * p, to: 35, peak: 0.35, attack: 0.02, decay: 0.3 });
+    noiseBurst(c, o, n, t + 0.05, { type: 'bandpass', from: 1400, to: 400, q: 1.5, peak: 0.18, attack: 0.005, decay: 0.12 });
   },
   go: (c, o, _n, t) => {
     tone(c, o, t, { type: 'square', from: 880, to: 880, peak: 0.09, attack: 0.003, decay: 0.3 });

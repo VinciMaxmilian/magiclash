@@ -324,7 +324,25 @@ export class Simulation {
         else this.endProjectile(p, 'expire', events);
       }
     }
+    this.resolveBarriers(events);
     s.projectiles = s.projectiles.filter((p) => !p.dead);
+  }
+
+  /** Barrier projectiles (stone walls) swallow enemy shots that touch them. */
+  private resolveBarriers(events: SimEvent[]) {
+    const all = this.state.projectiles;
+    for (const w of all) {
+      if (w.dead || !this.projectileDef(w).barrier) continue;
+      const wr = this.projectileRect(w);
+      for (const p of all) {
+        if (p === w || p.dead || p.team === w.team || p.exploding > 0) continue;
+        const d = this.projectileDef(p);
+        if (d.grounded || d.attached || d.barrier) continue;
+        if (!rectsOverlap(wr, this.projectileRect(p))) continue;
+        if (d.explosion && (d.onStage === 'explode' || d.explodeOnHit)) this.explode(p, d, events);
+        else this.endProjectile(p, 'stage', events);
+      }
+    }
   }
 
   // ── Hits ──────────────────────────────────────────────────────────────────
