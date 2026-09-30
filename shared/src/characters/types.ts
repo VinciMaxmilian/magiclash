@@ -20,7 +20,8 @@ export type CharacterClass =
   | 'dhampir'
   | 'summoner'
   | 'elder'
-  | 'geomancer';
+  | 'geomancer'
+  | 'wanderer';
 
 export type AttackSlot =
   | 'neutral_light'

@@ -27,11 +27,12 @@ Fases **0–7 implementadas**. Testes automatizados verdes; verificação no nav
 - **Polish (Fase 7)**: mapas Wizard Tower, Ancient Ruins, Volcanic Keep; música chiptune procedural
   (menu/batalha); controles touch (stick + botões, só em telas de toque).
 - **Temporada 1 — "Noite Eterna"** (`shared/src/data/characters/season1.ts`, `shared/src/data/seasons.ts`):
-  7 lutadores (Caçador: chicote de corrente + facas; Lutador: chicote + magia azul com disco bumerangue;
+  8 lutadores (Caçador: chicote de corrente + facas; Lutador: chicote + magia azul com disco bumerangue;
   Vampiro: chamas infernais + grande esfera de fogo; Mestiço: espada + teleporte intangível com névoa
   carmesim; Invocadora: pombas, gato, fênix, dragão e tartaruga; Ancião: chicote + chama sagrada, leque de
   cristais, tomo do trovão e círculo arcano; Geomante: pedras, muralha que bloqueia projéteis (`barrier`),
-  espinhos do chão e rochedo rolante) e 2 mapas (Salão do Trono, Biblioteca
+  espinhos do chão e rochedo rolante; Andarilha: maga dos três elementos — chamas gêmeas, tornado de fogo,
+  lança e bloco de gelo (também `barrier`), faíscas de raio) e 2 mapas (Salão do Trono, Biblioteca
   dos Caçadores, arte procedural). Tela **TEMPORADA 1: NOVIDADES** no título (`SeasonScene`).
   Mecânicas novas na sim: `intangible` (janela de invulnerabilidade de um golpe), `accelX` (bumerangue) e
   `whip` (chicote: forma da corda = função pura do quadro do golpe; as hitboxes seguem a corda — determinístico,
@@ -62,7 +63,7 @@ Env: `backend/.env` e `realtime/.env` (segredos, git-ignored; `GAME_SERVER_SECRE
 
 | Comando | O quê |
 |---|---|
-| `npm test` | 142 testes vitest (inclui Temporada 1): física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
+| `npm test` | 145 testes vitest (inclui Temporada 1): física, combate, exploits, classes, projéteis, bots, predição, contrato dados↔assets, game server (salas, tokens, WS) |
 | `npm run typecheck` | TS estrito shared + frontend + realtime |
 | `cd backend; .\.venv\Scripts\python.exe main.py test` | 102 testes pytest: segurança, perfis (fake), avatar, online (guest, salas, fila, resultado assinado) |
 | `SUPABASE_IT=1 … pytest tests/test_supabase_integration.py` | 10 testes de RLS/funções no Supabase real (cria/apaga usuários) |

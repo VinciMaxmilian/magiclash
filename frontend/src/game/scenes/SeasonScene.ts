@@ -11,7 +11,7 @@ import { defaultSetup } from '../match/setup';
 
 type Tab = 'characters' | 'stages';
 
-const CARD_H: Record<Tab, number> = { characters: 32, stages: 40 };
+const CARD_H: Record<Tab, number> = { characters: 28, stages: 40 };
 
 const CLASS_LABEL: Record<string, string> = {
   hunter: 'CAÇADOR',
@@ -21,6 +21,7 @@ const CLASS_LABEL: Record<string, string> = {
   summoner: 'INVOCADORA',
   elder: 'ANCIÃO',
   geomancer: 'GEOMANTE',
+  wanderer: 'ANDARILHA',
 };
 
 const STAGE_TEXT: Record<string, { title: string; text: string }> = {
@@ -102,8 +103,8 @@ export class SeasonScene extends Phaser.Scene {
     // Left column: one card per new fighter / map.
     const items = this.tab === 'characters' ? season.characters : season.stages;
     this.cards = items.map((id, i) => {
-      // Seven fighters: compact rows with 1× portraits; the two maps keep the tall cards.
-      const y = this.tab === 'characters' ? 90 + i * 36 : 94 + i * 44;
+      // Eight fighters: compact rows with 1× portraits; the two maps keep the tall cards.
+      const y = this.tab === 'characters' ? 88 + i * 32 : 94 + i * 44;
       const card = this.add.image(70, y, ensurePanel(this, 104, CARD_H[this.tab])).setScrollFactor(0).setDepth(10);
       if (this.tab === 'characters') {
         this.add.image(34, y, `portrait_${id}_red`).setScrollFactor(0).setDepth(11);

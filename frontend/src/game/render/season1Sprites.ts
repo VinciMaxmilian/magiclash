@@ -380,8 +380,8 @@ export const stoneFrames = (size: number): EffectSheet => {
 };
 
 /** Stone wall slab rising from the ground: rise, rise, standing, crumbling. */
-export const stoneWallFrames = (w: number, h: number): EffectSheet => {
-  const S = EARTH;
+export const stoneWallFrames = (w: number, h: number, ramp: Ramp = EARTH): EffectSheet => {
+  const S = ramp;
   return centered(
     [0.4, 0.8, 1, 0.85].map((k, f) => {
       const b = new PixelBuffer(w, h);
@@ -447,6 +447,29 @@ export const rockPillarFrames = (w: number, h: number): EffectSheet => {
       }
       if (f === 3) for (let i = 0; i < 6; i++) b.clear(Math.round(hashNoise(i, 0, 65) * w), top + Math.round(hashNoise(i, 1, 65) * 6));
       b.outline();
+      return b;
+    }),
+  );
+};
+
+/** Spinning fire tornado (wanderer): a tapering funnel whose bands scroll upward. */
+export const tornadoFrames = (w: number, h: number): EffectSheet => {
+  const F = PAL.fire;
+  return centered(
+    [0, 1, 2, 3].map((f) => {
+      const b = new PixelBuffer(w, h);
+      for (let y = 0; y < h; y++) {
+        const t = 1 - y / h; // 0 at the bottom, 1 at the top
+        const half = (w / 2) * (0.25 + 0.75 * t) * (0.9 + 0.1 * Math.sin(y / 3 + f));
+        const sway = Math.sin(y / 7 + f * 1.4) * 2 * t;
+        for (let x = 0; x < w; x++) {
+          const dx = x + 0.5 - w / 2 - sway;
+          if (Math.abs(dx) > half) continue;
+          const band = Math.floor((y + f * 3 + dx * 0.6) / 4) % 3;
+          const edge = Math.abs(dx) / half;
+          b.set(x, y, edge > 0.8 ? F[1] : band === 0 ? F[4] : band === 1 ? F[3] : F[2]);
+        }
+      }
       return b;
     }),
   );

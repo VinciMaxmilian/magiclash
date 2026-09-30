@@ -203,6 +203,29 @@ describe('Temporada 1', () => {
     expect(ev.some((e) => e.type === 'projectile_spawn' && e.defId === 'thunder_tome')).toBe(true);
   });
 
+  it('wanderer fire tornado drifts forward and keeps hitting', () => {
+    const sim = duel('wanderer', 'knight');
+    place(sim, 0, -100, 1);
+    place(sim, 1, -40, -1);
+    settle(sim);
+    const ev = run(sim, 110, (t) => [t < 2 ? Btn.Heavy : 0, 0]);
+    const spawn = ev.find((e) => e.type === 'projectile_spawn' && e.defId === 'fire_tornado') as { x: number } | undefined;
+    expect(spawn).toBeDefined();
+    expect(hitsOn(ev, 1).length).toBeGreaterThan(1);
+  });
+
+  it('wanderer glacier blocks projectiles like the stone wall', () => {
+    const sim = duel('wanderer', 'archer');
+    place(sim, 0, -100, 1);
+    place(sim, 1, 60, -1);
+    settle(sim);
+    run(sim, 20, (t) => [t < 2 ? Btn.Heavy | Btn.Down : 0, 0]);
+    expect(sim.state.projectiles.some((p) => p.defId === 'glacier')).toBe(true);
+    const ev = run(sim, 50, (t) => [0, t < 2 ? Btn.Light : 0]);
+    expect(hitsOn(ev, 0).length).toBe(0);
+    expect(ev.some((e) => e.type === 'projectile_end' && e.defId === 'arrow' && e.reason === 'stage')).toBe(true);
+  });
+
   it('new stages load and fighters stand on them', () => {
     for (const stageId of SEASONS[0].stages) {
       const sim = duel('summoner', 'vampire', stageId);

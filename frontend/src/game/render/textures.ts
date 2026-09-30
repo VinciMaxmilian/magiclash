@@ -36,6 +36,7 @@ import {
   rockPillarFrames,
   stoneFrames,
   stoneWallFrames,
+  tornadoFrames,
   batFrames,
   bloodHitFrames,
   catFrames,
@@ -268,6 +269,8 @@ export const registerAllTextures = (scene: Phaser.Scene): void => {
   addEffect(scene, 'proj_stone_wall', stoneWallFrames(20, 46));
   addEffect(scene, 'proj_earth_spikes', earthSpikesFrames(32, 26));
   addEffect(scene, 'proj_rock_pillar', rockPillarFrames(22, 42));
+  addEffect(scene, 'proj_fire_tornado', tornadoFrames(26, 52));
+  addEffect(scene, 'proj_glacier', stoneWallFrames(24, 42, PAL.ice));
 
   const px = new PixelBuffer(1, 1);
   px.set(0, 0, PAL.white);

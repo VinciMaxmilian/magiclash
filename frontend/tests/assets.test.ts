@@ -22,7 +22,7 @@ const PROJECTILE_SPRITES = new Set([
   'ice_spikes', 'spark_bolt', 'thunder_beam', 'sky_spark', 'ball_lightning', 'thunderstrike',
   'dagger', 'azure_flame', 'azure_orb', 'rune_disc', 'azure_pillar', 'hellflame', 'inferno_orb', 'hell_geyser',
   'crimson_wave', 'dove', 'cat', 'phoenix', 'dragon', 'turtle',
-  'sacred_flame', 'stone', 'boulder', 'stone_wall', 'earth_spikes', 'rock_pillar',
+  'sacred_flame', 'stone', 'boulder', 'stone_wall', 'earth_spikes', 'rock_pillar', 'fire_tornado', 'glacier',
 ]);
 const HIT_EFFECTS = new Set(['spark', 'spark_big', 'explosion', 'frost', 'shock', 'arcane', 'blood', 'feather', 'rubble']);
 

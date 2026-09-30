@@ -1152,4 +1152,193 @@ export const GEOMANCER: CharacterDefinition = {
   },
 };
 
-export const SEASON1_CHARACTERS = [HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER, ELDER, GEOMANCER] as const;
+// ── ANDARILHA ───────────────────────────────────────────────────────────────────
+
+const WANDER_CHILL = { kind: 'slow' as const, ticks: 80, factor: 0.65 };
+const WANDER_FREEZE = { kind: 'slow' as const, ticks: 130, factor: 0.5 };
+
+/**
+ * Maga errante dos três elementos: chamas gêmeas e tornado de fogo, lança e bloco glacial
+ * (que também bloqueia projéteis) e faíscas elétricas. Leve e frágil, controla o espaço.
+ */
+export const WANDERER: CharacterDefinition = {
+  id: 'wanderer',
+  name: 'Andarilha',
+  class: 'wanderer',
+  description: 'Maga errante dos três elementos: tornado de fogo, lança e bloco de gelo, faíscas de raio.',
+  preferredRange: 'mid',
+  weight: 0.92,
+  hitstunMultiplier: 1,
+  moveSpeed: 2.75,
+  groundAccel: 0.55,
+  groundFriction: 0.52,
+  airSpeed: 2.5,
+  airAccel: 0.26,
+  airFriction: 0.04,
+  jumpForce: 7.4,
+  airJumpForce: 6.6,
+  maxAirJumps: 2,
+  jumpCutMultiplier: 0.5,
+  gravity: 0.29,
+  maxFallSpeed: 4.7,
+  fastFallSpeed: 7.5,
+  body: { w: 14, h: 30 },
+  hurtboxes: [
+    { x: -7, y: -28, w: 14, h: 28 },
+    { x: -5, y: -34, w: 10, h: 7 },
+  ],
+  dodge: { duration: 21, invulnFrom: 2, invulnTo: 14, speed: 4.8, decay: 0.9, groundCooldown: 44, airCooldown: 40 },
+  projectiles: [
+    {
+      id: 'twin_flame', w: 10, h: 8, speed: 5.8, angle: 0, gravity: 0, lifetime: 48,
+      damage: 4, knockback: { base: 2.6, growth: 3.4, angle: 30 },
+      onStage: 'destroy', sprite: 'fireball', hitEffect: 'explosion', sound: 'fire',
+    },
+    {
+      id: 'fire_tornado', w: 24, h: 50, speed: 1.6, angle: 0, gravity: 0, lifetime: 90,
+      damage: 3, knockback: { base: 3.0, growth: 2.6, angle: 80 }, pierce: 99, rehitInterval: 12,
+      onStage: 'pass', grounded: true, sprite: 'fire_tornado', hitEffect: 'explosion', sound: 'fire_heavy',
+    },
+    {
+      id: 'frost_spear', w: 18, h: 6, speed: 6.4, angle: 0, gravity: 0, lifetime: 70,
+      damage: 8, knockback: { base: 4.0, growth: 7.0, angle: 28 }, pierce: 2, status: WANDER_FREEZE, hitstopBonus: 2,
+      onStage: 'destroy', sprite: 'ice_lance', hitEffect: 'frost', sound: 'ice_heavy',
+    },
+    {
+      id: 'glacier', w: 22, h: 40, speed: 0, angle: 0, gravity: 0, lifetime: 120,
+      damage: 4, knockback: { base: 3.4, growth: 2.6, angle: 70 }, pierce: 99, rehitInterval: 40, status: WANDER_CHILL,
+      onStage: 'pass', grounded: true, barrier: true, sprite: 'glacier', hitEffect: 'frost', sound: 'ice_heavy',
+    },
+    {
+      id: 'rising_spark', w: 16, h: 60, speed: 0, angle: 0, gravity: 0, lifetime: 8,
+      damage: 6, knockback: { base: 3.6, growth: 4.8, angle: 88 }, pierce: 3, hitstunMultiplier: 1.3,
+      onStage: 'pass', attached: true, sprite: 'sky_spark', hitEffect: 'shock', sound: 'zap',
+    },
+  ],
+  attacks: [
+    {
+      id: 'flame_palm', name: 'Palma Flamejante', direction: 'neutral', aerial: false,
+      damage: 5, knockback: { base: 3.0, growth: 3.4, angle: 38 },
+      startup: 5, active: 3, recovery: 12, cooldown: 0, range: 'short',
+      hitboxes: [{ x: 4, y: -28, w: 22, h: 16 }], friction: 0.8,
+      effect: 'fire_burst', sound: 'fire', anim: 'cast_forward',
+    },
+    {
+      id: 'twin_flames', name: 'Chamas Gêmeas', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 8, active: 1, recovery: 14, cooldown: 22, range: 'long',
+      hitboxes: [],
+      projectiles: [
+        { id: 'twin_flame', frame: 8, x: 14, y: -20, angle: -5 },
+        { id: 'twin_flame', frame: 10, x: 14, y: -26, angle: 5 },
+      ],
+      effect: 'none', sound: 'cast', anim: 'cast_forward',
+    },
+    {
+      id: 'spark_rise', name: 'Faísca Ascendente', direction: 'up', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 8, active: 1, recovery: 14, cooldown: 12, range: 'medium',
+      hitboxes: [], projectiles: [{ id: 'rising_spark', frame: 8, x: 4, y: -58 }],
+      effect: 'none', sound: 'cast', anim: 'cast_up',
+    },
+    {
+      id: 'frost_sweep', name: 'Varredura Gélida', direction: 'down', aerial: false,
+      damage: 5, knockback: { base: 3.0, growth: 3.4, angle: 25 },
+      startup: 6, active: 4, recovery: 13, cooldown: 8, range: 'short',
+      hitboxes: [{ x: -4, y: -12, w: 34, h: 12 }], status: WANDER_CHILL, friction: 0.8,
+      effect: 'frost_burst', sound: 'ice', anim: 'cast_ground',
+    },
+    {
+      id: 'fire_tornado_cast', name: 'Tornado de Fogo', direction: 'neutral', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 16, active: 1, recovery: 22, cooldown: 70, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'fire_tornado', frame: 16, x: 26, y: -10 }],
+      charge: { frame: 11, maxTicks: 50, damage: 1.7, knockback: 1.6, speed: 1.6 },
+      effect: 'none', sound: 'cast', anim: 'cast_charge',
+    },
+    {
+      id: 'frost_spear_cast', name: 'Lança de Gelo', direction: 'side', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 13, active: 1, recovery: 20, cooldown: 50, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'frost_spear', frame: 13, x: 14, y: -24 }],
+      effect: 'none', sound: 'cast', anim: 'cast_charge',
+    },
+    {
+      id: 'glacier_cast', name: 'Bloco Glacial', direction: 'down', aerial: false,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 12, active: 1, recovery: 18, cooldown: 90, range: 'short',
+      hitboxes: [], projectiles: [{ id: 'glacier', frame: 12, x: 30, y: -10 }],
+      effect: 'none', sound: 'cast', anim: 'cast_ground',
+    },
+    {
+      id: 'storm_leap', name: 'Rajada Elétrica', direction: 'up', aerial: false,
+      damage: 6, knockback: { base: 3.6, growth: 4.4, angle: 80 },
+      startup: 5, active: 10, recovery: 20, cooldown: 20, range: 'short',
+      hitboxes: [{ x: -9, y: -40, w: 20, h: 40 }], movement: [{ frame: 5, vx: 2.2, vy: -9.6 }],
+      recoveryMove: true, landingLag: 9, hitstunMultiplier: 1.3,
+      effect: 'shock_trail', sound: 'thunder', anim: 'leap',
+    },
+    {
+      id: 'air_twin_flames', name: 'Chamas Gêmeas Aéreas', direction: 'side', aerial: true,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 8, active: 1, recovery: 13, cooldown: 22, range: 'long',
+      hitboxes: [],
+      projectiles: [
+        { id: 'twin_flame', frame: 8, x: 14, y: -18, angle: -8 },
+        { id: 'twin_flame', frame: 10, x: 14, y: -24, angle: 4 },
+      ],
+      landingLag: 6, gravityScale: 0.5,
+      effect: 'none', sound: 'cast', anim: 'air_cast',
+    },
+    {
+      id: 'air_spark_rise', name: 'Faísca Aérea', direction: 'up', aerial: true,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 7, active: 1, recovery: 13, cooldown: 12, range: 'medium',
+      hitboxes: [], projectiles: [{ id: 'rising_spark', frame: 7, x: 4, y: -58 }], landingLag: 6,
+      effect: 'none', sound: 'cast', anim: 'air_cast_up',
+    },
+    {
+      id: 'frost_stomp', name: 'Pisada Gélida', direction: 'down', aerial: true,
+      damage: 7, knockback: { base: 3.0, growth: 4.2, angle: -60 },
+      startup: 8, active: 6, recovery: 14, cooldown: 8, range: 'short',
+      hitboxes: [{ x: -7, y: -6, w: 16, h: 20 }], status: WANDER_CHILL, landingLag: 10,
+      effect: 'frost_trail', sound: 'ice', anim: 'air_stomp',
+    },
+    {
+      id: 'air_frost_spear', name: 'Lança de Gelo Aérea', direction: 'neutral', aerial: true,
+      ...{ damage: 0, knockback: NO_KB },
+      startup: 13, active: 1, recovery: 18, cooldown: 50, range: 'long',
+      hitboxes: [], projectiles: [{ id: 'frost_spear', frame: 13, x: 14, y: -22 }], landingLag: 8, gravityScale: 0.4,
+      effect: 'none', sound: 'cast', anim: 'air_cast',
+    },
+    {
+      id: 'blazing_descent', name: 'Descida Flamejante', direction: 'down', aerial: true,
+      damage: 11, knockback: { base: 4.4, growth: 6.2, angle: 55 },
+      startup: 12, active: 40, recovery: 20, cooldown: 30, range: 'short',
+      hitboxes: [{ x: -14, y: -12, w: 28, h: 20 }],
+      movement: [{ frame: 0, vx: 0, vy: -2 }, { frame: 12, vx: 0, vy: 9 }],
+      gravityScale: 0.3, untilLanding: true, landingLag: 18, hitstopBonus: 2,
+      effect: 'fire_trail', sound: 'fire_heavy', anim: 'plunge',
+    },
+  ],
+  moveset: {
+    neutral_light: 'flame_palm',
+    side_light: 'twin_flames',
+    up_light: 'spark_rise',
+    down_light: 'frost_sweep',
+    neutral_heavy: 'fire_tornado_cast',
+    side_heavy: 'frost_spear_cast',
+    down_heavy: 'glacier_cast',
+    up_heavy: 'storm_leap',
+    air_neutral_light: 'air_twin_flames',
+    air_side_light: 'air_twin_flames',
+    air_up_light: 'air_spark_rise',
+    air_down_light: 'frost_stomp',
+    air_neutral_heavy: 'air_frost_spear',
+    air_side_heavy: 'air_frost_spear',
+    air_up_heavy: 'storm_leap',
+    air_down_heavy: 'blazing_descent',
+  },
+};
+
+export const SEASON1_CHARACTERS = [HUNTER, BRAWLER, VAMPIRE, DHAMPIR, SUMMONER, ELDER, GEOMANCER, WANDERER] as const;

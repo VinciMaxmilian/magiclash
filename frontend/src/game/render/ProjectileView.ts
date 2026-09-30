@@ -51,7 +51,7 @@ export class ProjectileViews {
     if (sprite === 'axe') return p.stuck >= 0 ? 1 : Math.floor(p.age / 3) % 4;
     if (sprite === 'stone' || sprite === 'boulder') return Math.floor(p.age / (sprite === 'boulder' ? 4 : 3)) % frames;
     // The wall rises fast, stands, and crumbles in its last ticks.
-    if (sprite === 'stone_wall') return p.age < 4 ? 0 : p.age < 8 ? 1 : p.age > lifetime - 12 ? 3 : 2;
+    if (sprite === 'stone_wall' || sprite === 'glacier') return p.age < 4 ? 0 : p.age < 8 ? 1 : p.age > lifetime - 12 ? 3 : 2;
     // Grounded / attached hazards play once over their lifetime.
     if (['fire_column', 'ice_spikes', 'thunder_beam', 'sky_spark', 'thunderstrike', 'azure_pillar', 'hell_geyser', 'earth_spikes', 'rock_pillar'].includes(sprite)) {
       return Math.min(frames - 1, Math.floor((p.age / lifetime) * frames));

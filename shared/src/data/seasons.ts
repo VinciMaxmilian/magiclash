@@ -17,7 +17,7 @@ export const SEASONS: readonly SeasonDefinition[] = [
     name: 'TEMPORADA 1',
     subtitle: 'NOITE ETERNA',
     blurb: 'Caçadores e criaturas da noite chegam ao MagiClash.',
-    characters: ['hunter', 'brawler', 'vampire', 'dhampir', 'summoner', 'elder', 'geomancer'],
+    characters: ['hunter', 'brawler', 'vampire', 'dhampir', 'summoner', 'elder', 'geomancer', 'wanderer'],
     stages: ['throne_hall', 'hunters_library'],
   },
 ];

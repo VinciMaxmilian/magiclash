@@ -30,7 +30,7 @@ export type WeaponKind = 'sword' | 'axe' | 'bow' | 'staff' | 'whip' | 'chainwhip
 
 export interface FighterStyle {
   id: string;
-  head: 'greathelm' | 'horned' | 'hood' | 'wizard' | 'hunter' | 'brawler' | 'vampire' | 'dhampir' | 'summoner' | 'elder' | 'geomancer';
+  head: 'greathelm' | 'horned' | 'hood' | 'wizard' | 'hunter' | 'brawler' | 'vampire' | 'dhampir' | 'summoner' | 'elder' | 'geomancer' | 'wanderer';
   torso: 'plate' | 'bare' | 'tunic' | 'robe' | 'coat' | 'dress';
   arms: 'plate' | 'bare' | 'sleeve' | 'robe' | 'coat';
   legs: 'plate' | 'fur' | 'pants' | 'robe' | 'coat' | 'stockings';
@@ -93,6 +93,7 @@ const PALE: Ramp = [PAL.skin[1], PAL.skin[2], PAL.skin[3], PAL.sky[6]];
 const DARK_SKIN: Ramp = [PAL.leather[0], PAL.leather[1], PAL.leather[2], PAL.leather[3]];
 const HAIR_WHITE: Ramp = [PAL.stone[3], PAL.steel[3], PAL.steel[4], PAL.white];
 const COAT_ELDER: Ramp = [TEAM_RAMPS.red[0], TEAM_RAMPS.red[1], TEAM_RAMPS.red[2], TEAM_RAMPS.red[3]];
+const ROBE_WANDERER: Ramp = [TEAM_RAMPS.blue[0], TEAM_RAMPS.blue[1], TEAM_RAMPS.blue[2], TEAM_RAMPS.blue[3]];
 const DRESS_GEOMANCER: Ramp = [TEAM_RAMPS.yellow[0], TEAM_RAMPS.yellow[1], TEAM_RAMPS.yellow[2], TEAM_RAMPS.yellow[3]];
 
 export const STYLES: Record<string, FighterStyle> = {
@@ -139,6 +140,10 @@ export const STYLES: Record<string, FighterStyle> = {
     id: 'geomancer', head: 'geomancer', torso: 'dress', arms: 'coat', legs: 'pants', weapon: 'none', cape: false,
     coat: DRESS_GEOMANCER, hair: HAIR_BLACK, skin: DARK_SKIN, shirt: PAL.stone[0], pants: BLACK,
     hands: PAL.stone[3], size: { thigh: 7, shin: 7, upper: 5, fore: 5, torsoH: 9, torsoW: 8, hipDy: 0 }, family: 'staff',
+  },
+  wanderer: {
+    id: 'wanderer', head: 'wanderer', torso: 'robe', arms: 'robe', legs: 'robe', weapon: 'none', cape: false,
+    robe: ROBE_WANDERER, hair: HAIR_BLONDE, eye: PAL.moss[3], size: { ...BASE_SIZE, torsoW: 9, torsoH: 9 }, family: 'staff',
   },
   summoner: {
     id: 'summoner', head: 'summoner', torso: 'dress', arms: 'coat', legs: 'stockings', weapon: 'none', cape: false,
@@ -255,6 +260,18 @@ const HEAD_ELDER = [
   'hi..bbbbb.',
   '.i..bbbb..',
   '.....bb...',
+];
+// Hood (robe ramp R/r) with short blonde hair (y/Y) peeking out, green eyes.
+const HEAD_WANDERER = [
+  '..RRRRR...',
+  '.RRrrrRR..',
+  'RRryyyYrR.',
+  'RRyyssssr.',
+  'RRyssskS..',
+  'RRRsssss..',
+  'RRRssss...',
+  '.RRR......',
+  '..RR......',
 ];
 const HEAD_GEOMANCER = [
   '..TTTTT..',
@@ -611,14 +628,15 @@ export const drawFighter = (pose: Pose, style: FighterStyle, team: TeamColor): P
     case 'dhampir':
     case 'summoner':
     case 'elder':
-    case 'geomancer': {
+    case 'geomancer':
+    case 'wanderer': {
       const map = {
         hunter: HEAD_HUNTER, brawler: HEAD_BRAWLER, vampire: HEAD_VAMPIRE, dhampir: HEAD_DHAMPIR, summoner: HEAD_SUMMONER,
-        elder: HEAD_ELDER, geomancer: HEAD_GEOMANCER,
+        elder: HEAD_ELDER, geomancer: HEAD_GEOMANCER, wanderer: HEAD_WANDERER,
       }[style.head];
       const beard = style.head === 'vampire' ? PAL.ink : style.head === 'hunter' ? Hr[0] : style.head === 'elder' ? Hr[2] : K[1];
       buf.stamp(hx - 4, hy - map.length + 1, map, {
-        h: Hr[1], i: Hr[2], j: Hr[3], s: K[2], S: K[3], b: beard, k: style.eye ?? PAL.ink, T: T[1], t: T[2], g: G[3],
+        h: Hr[1], i: Hr[2], j: Hr[3], s: K[2], S: K[3], b: beard, k: style.eye ?? PAL.ink, T: T[1], t: T[2], g: G[3], R: R[1], r: R[2], y: Hr[2], Y: Hr[3],
       });
       break;
     }
